@@ -39,9 +39,9 @@ class Estilo:
 ESTILOS = {
     "padrao": Estilo("padrao", "CyberKDE Cursor", fill=BASE, out=TXT1, ink=TXT1, det=RED, sw=2.6),
     "neon": Estilo("neon", "CyberKDE Cursor Neon", fill=BASE, out=RED, ink=TXT1, det=RED, sw=2.2, glow=True),
-    "minimo": Estilo("minimo", "CyberKDE Cursor Mínimo", fill=TXT1, out=BASE, ink=BASE, det=BASE, sw=1.9),
+    "minimo": Estilo("minimo", "CyberKDE Cursor Minimal", fill=TXT1, out=BASE, ink=BASE, det=BASE, sw=1.9),
     # mira: o desenho do padrão, mas o ponteiro é uma mira fina e a mão ganha colchetes que fecham
-    "mira": Estilo("mira", "CyberKDE Cursor Mira", fill=BASE, out=TXT1, ink=TXT1, det=RED, sw=2.6),
+    "mira": Estilo("mira", "CyberKDE Cursor Crosshair", fill=BASE, out=TXT1, ink=TXT1, det=RED, sw=2.6),
 }
 
 
@@ -481,7 +481,8 @@ def gera_variante(est, saida):
     tema.mkdir()
     shutil.move(str(curd), str(tema / "cursors"))
     (tema / "index.theme").write_text(
-        f"[Icon Theme]\nName={est.nome}\nComment=Cursores do tema CyberKDE ({est.id}): seta chanfrada, cantoneiras e destaque do tema\n"
+        f"[Icon Theme]\nName={est.nome}\nComment=CyberKDE theme cursors ({est.id}): chamfered arrow, corner brackets and the theme accent\n"
+        f"Comment[pt_BR]=Cursores do tema CyberKDE ({est.id}): seta chanfrada, cantoneiras e destaque do tema\n"
         "Inherits=breeze_cursors\n")
     return base
 

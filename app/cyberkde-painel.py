@@ -1284,7 +1284,7 @@ class Painel(QObject):
         def fim(codigo, saida, erro):
             papel = ""
             for linha in saida.splitlines():
-                if linha.startswith("Papel de parede:"):
+                if linha.startswith(("Papel de parede:", "Wallpaper:")):
                     valor = linha.split(":", 1)[1].strip()
                     if valor.startswith("/"):
                         papel = valor

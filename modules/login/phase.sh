@@ -57,7 +57,7 @@ phase_login() {
   if [[ -d /usr/share/sddm/themes ]]; then
     login_sddm
   else
-    echo "  (sem SDDM: a tela de login fica como está)"
+    echo "$(t "  (sem SDDM: a tela de login fica como está)" "  (no SDDM: the login screen stays as it is)")"
   fi
   # Splash: o padrão atual vem de ~/.config/kdedefaults/ksplashrc (Breeze Escuro); o "off" apaga
   # estas chaves e o padrão volta sozinho.
@@ -96,7 +96,7 @@ phase_login-bloqueio() {
   local build="$project/modules/login/build"
   local lock=/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen
   if [[ ! -f $lock/LockScreen.qml || ! -f $lock/PasswordSync.qml ]]; then
-    echo "A estrutura da tela de bloqueio do Plasma mudou; nada foi aplicado." >&2
+    echo "$(t "A estrutura da tela de bloqueio do Plasma mudou; nada foi aplicado." "The Plasma lock screen structure changed; nothing was applied.")" >&2
     return 1
   fi
   local stage
@@ -251,7 +251,7 @@ efeito_cmd_splash() {
       *) modo=invalido ;;
     esac
   done
-  [[ $modo != invalido ]] || cor_exit 2 "$(t "uso: cyberkde efeito splash [completo|curto|nenhum] [--json]" "usage: cyberkde efeito splash [completo|curto|nenhum] [--json]")"
+  [[ $modo != invalido ]] || cor_exit 2 "$(t "uso: cyberkde efeito splash [completo|curto|nenhum] [--json]" "usage: cyberkde effect splash [full|short|none] [--json]")"
   local -a avisos=()
   if [[ -n $modo ]]; then
     take_lock || cor_exit 3 "$(t "ocupado: outra execução do cyberkde está em andamento" "busy: another cyberkde run is in progress")"
@@ -318,7 +318,7 @@ efeito_cmd_login() {
       *) ruim=1 ;;
     esac
   done
-  (( ruim == 0 )) || cor_exit 2 "$(t "uso: cyberkde efeito login [--entrada completa|curta|fatias|nenhuma] [--painel centro|esquerda] [--sucesso on|off] [--fundo login|papel] [--json]" "usage: cyberkde efeito login [--entrada completa|curta|fatias|nenhuma] [--painel centro|esquerda] [--sucesso on|off] [--fundo login|papel] [--json]")"
+  (( ruim == 0 )) || cor_exit 2 "$(t "uso: cyberkde efeito login [--entrada completa|curta|fatias|nenhuma] [--painel centro|esquerda] [--sucesso on|off] [--fundo login|papel] [--json]" "usage: cyberkde effect login [--entrance full|short|slices|none] [--panel center|left] [--success on|off] [--background login|wallpaper] [--json]")"
   local -a avisos=() pendentes=()
   # O comando exato para completar com sudo (campo "retomar"): o mesmo pedido, num terminal.
   local retomar="cyberkde efeito login"

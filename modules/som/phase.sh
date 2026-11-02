@@ -122,7 +122,7 @@ efeito_cmd_som() {
       *) variante=invalida ;;
     esac
   done
-  [[ $variante != invalida ]] || cor_exit 2 "$(t "uso: cyberkde efeito som [padrao|discreto] [--json]" "usage: cyberkde efeito som [padrao|discreto] [--json]")"
+  [[ $variante != invalida ]] || cor_exit 2 "$(t "uso: cyberkde efeito som [padrao|discreto] [--json]" "usage: cyberkde effect sound [default|subtle] [--json]")"
   local -a avisos=()
   if [[ -n $variante ]]; then
     take_lock || cor_exit 3 "$(t "ocupado: outra execução do cyberkde está em andamento" "busy: another cyberkde run is in progress")"
@@ -131,7 +131,7 @@ efeito_cmd_som() {
     if fase_ligada som; then
       (fase_atual=som; efeito_som_aplicar)
     else
-      avisos+=("$(t "Os sons do tema estão desligados: a variante foi guardada; para usar, cyberkde on som." "Theme sounds are off: the variant was saved; to use it, cyberkde on som.")")
+      avisos+=("$(t "Os sons do tema estão desligados: a variante foi guardada; para usar, cyberkde on som." "Theme sounds are off: the variant was saved; to use it, cyberkde on sound.")")
     fi
   fi
   local estado

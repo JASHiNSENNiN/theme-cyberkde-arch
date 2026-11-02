@@ -124,7 +124,7 @@ estilo_cmd() {
   if (( $# )); then
     take_lock || cor_exit 3 "$(t "ocupado: outra execução do cyberkde está em andamento" "busy: another cyberkde run is in progress")"
     if ! saida=$(CYBERKDE_LANG=$cyberkde_lang python3 "$estilo_py" aplicar "$id" "$@" 2>&1); then
-      cor_exit 2 "uso: cyberkde efeito $id [on|off] [--variante valor] — $saida"
+      cor_exit 2 "$(t "uso: cyberkde efeito $id [on|off] [--variante valor] — $saida" "usage: cyberkde effect $(nome_cli "$id") [on|off] [--variant value]: $saida")"
     fi
     alvos=$saida
     if [[ -n $alvos ]]; then
@@ -148,7 +148,7 @@ estilo_cmd() {
     printf '{"efeito":"%s",%s,"aplicado":%s,"avisos":%s}\n' "$id" "${corpo%\}}" \
       "$(json_list "${aplicado[@]}")" "$(json_list_str "${avisos[@]}")" >&3
   else
-    echo "$id: $estado"
+    echo "$(nome_cli "$id"): $estado"
     local a
     for a in "${avisos[@]}"; do echo "$(t Aviso Note): $a" >&2; done
   fi

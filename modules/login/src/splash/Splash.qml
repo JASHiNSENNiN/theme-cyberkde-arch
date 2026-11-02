@@ -20,8 +20,8 @@ Rectangle {
     property real previewT: -1
 
     readonly property real factor: Kirigami.Units.longDuration > 0 ? Kirigami.Units.longDuration / 200 : 0
-    readonly property var steps: ["Preparando", "Preparando", "Iniciando o Plasma", "Carregando configurações",
-                                  "Restaurando a sessão", "Gerenciador de janelas", "Área de trabalho"]
+    readonly property var steps: [CK.tx("Preparando", "Preparing"), CK.tx("Preparando", "Preparing"), CK.tx("Iniciando o Plasma", "Starting Plasma"), CK.tx("Carregando configurações", "Loading settings"),
+                                  CK.tx("Restaurando a sessão", "Restoring the session"), CK.tx("Gerenciador de janelas", "Window manager"), CK.tx("Área de trabalho", "Desktop")]
     readonly property int segments: 24
     property string modo: Opcoes.splash        // completo | curto | nenhum
     // Fundo = papel da corporação, que já traz a placa com o logo: o logo daqui não aparece (F7).
@@ -102,7 +102,7 @@ Rectangle {
                 spacing: 12
                 Rectangle { width: 18; height: 3; color: CK.red; anchors.verticalCenter: parent.verticalCenter }
                 Text {
-                    text: "INICIALIZAÇÃO DO SISTEMA"
+                    text: CK.tx("INICIALIZAÇÃO DO SISTEMA", "SYSTEM BOOT")
                     color: CK.txt2
                     font.family: CK.fontUi
                     font.pixelSize: 13

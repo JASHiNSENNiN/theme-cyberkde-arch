@@ -173,7 +173,7 @@ wallpapers_set() {
         --group org.kde.image --group General --key Image "$img"
     done
   else
-    echo "papeis-de-parede: o plasmashell não respondeu; área de trabalho não alterada." >&2
+    echo "$(t "papeis-de-parede: o plasmashell não respondeu; área de trabalho não alterada." "wallpapers: plasmashell did not answer; desktop unchanged.")" >&2
     return 1
   fi
 }
@@ -227,7 +227,7 @@ off_papeis-de-parede() {
   else
     # Precisa devolver 1: o cmd_off apaga ledger/files e sairia 0, escondendo a falha, e o
     # papel de parede ficaria preso no do CyberKDE.
-    echo "papeis-de-parede: registro mantido em $rec para tentar de novo." >&2
+    echo "$(t "papeis-de-parede: registro mantido em $rec para tentar de novo." "wallpapers: record kept in $rec to try again.")" >&2
     return 1
   fi
 }
@@ -294,7 +294,7 @@ efeito_cmd_papel() {
       *) opcao=invalida ;;
     esac
   done
-  [[ $opcao != invalida ]] || cor_exit 2 "$(t "uso: cyberkde efeito papel [a|b|c|d|corp|padrao] [--json]" "usage: cyberkde efeito papel [a|b|c|d|corp|padrao] [--json]")"
+  [[ $opcao != invalida ]] || cor_exit 2 "$(t "uso: cyberkde efeito papel [a|b|c|d|corp|padrao] [--json]" "usage: cyberkde effect wallpaper [a|b|c|d|corp|default] [--json]")"
   local -a avisos=()
   if [[ -n $opcao ]]; then
     take_lock || cor_exit 3 "$(t "ocupado: outra execução do cyberkde está em andamento" "busy: another cyberkde run is in progress")"
@@ -303,13 +303,13 @@ efeito_cmd_papel() {
     if fase_ligada papeis-de-parede; then
       (fase_atual=papeis-de-parede; efeito_papel_aplicar) || cor_exit 1 "$(t "não consegui aplicar o papel de parede" "could not apply the wallpaper")"
     else
-      avisos+=("$(t "O papel de parede do tema está desligado: a opção foi guardada; para usar, cyberkde on papeis-de-parede." "The theme wallpaper is off: the option was saved; to use it, cyberkde on papeis-de-parede.")")
+      avisos+=("$(t "O papel de parede do tema está desligado: a opção foi guardada; para usar, cyberkde on papeis-de-parede." "The theme wallpaper is off: the option was saved; to use it, cyberkde on wallpapers.")")
     fi
     if [[ $opcao == corp ]] && ! papel_corp_id >/dev/null; then
       avisos+=("$(t "A corporação atual não tem papel próprio (ou não há corporação escolhida: cyberkde corp <id>); fica a opção A até escolher uma." "The current corporation has no wallpaper of its own (or none is chosen: cyberkde corp <id>); option A is used until one is picked.")")
     fi
     if [[ -n $(wallpapers_own) ]]; then
-      avisos+=("$(t "Há uma imagem própria escolhida (cyberkde papel); ela vale por cima da opção. Para voltar às do tema: cyberkde papel padrao." "A custom image is set (cyberkde papel); it overrides the option. To go back to the theme ones: cyberkde papel padrao.")")
+      avisos+=("$(t "Há uma imagem própria escolhida (cyberkde papel); ela vale por cima da opção. Para voltar às do tema: cyberkde papel padrao." "A custom image is set (cyberkde wallpaper); it overrides the option. To go back to the theme ones: cyberkde wallpaper default.")")
     fi
   fi
   local estado

@@ -16,7 +16,7 @@
 
 CYBERKDE_PHASES+=(barra-e-dock)
 descreve_fase barra-e-dock "Barra e dock" sistema nao "Barra fina em cima e dock embaixo, como nas capturas (cyberkde layout tema)." \
-  "Bar and dock" "Thin bar on top and dock at the bottom, as in the screenshots (cyberkde layout tema)."
+  "Bar and dock" "Thin bar on top and dock at the bottom, as in the screenshots (cyberkde layout theme)."
 CYBERKDE_INSTALLS+=(install_barra-e-dock)
 CYBERKDE_PRE_OFF_HOOKS+=(pre_off_barra-e-dock)
 CYBERKDE_OFF_HOOKS+=(off_barra-e-dock)
@@ -210,7 +210,7 @@ latte_start_conferido() {
     r=0
     latte_visivel || r=$?
     (( r == 1 )) || return 0
-    echo "  (o Latte subiu sem mostrar a dock; reiniciando)"
+    echo "$(t "  (o Latte subiu sem mostrar a dock; reiniciando)" "  (Latte started without showing the dock; restarting)")"
     latte_stop
   done
   latte_start
@@ -446,13 +446,13 @@ EOF
 
 phase_barra-e-dock() {
   if ! layout_tema; then
-    echo "  (barra e dock: mantidas como estão; 'cyberkde layout tema' usa o arranjo das capturas)"
+    echo "$(t "  (barra e dock: mantidas como estão; 'cyberkde layout tema' usa o arranjo das capturas)" "  (bar and dock: kept as they are; 'cyberkde layout theme' uses the screenshot arrangement)")"
     return 0
   fi
   # O plasmashell pode estar reiniciando (por outro programa, ou fora do ar desde antes): espera até ~15 s
   # e, se nem o processo existe, sobe o serviço. Só desiste se mesmo assim ele não responder.
   if ! plasmashell_garantir; then
-    echo "O Plasma (plasmashell) não respondeu em 15 s; a barra e a dock ficam para o próximo 'cyberkde on'." >&2
+    echo "$(t "O Plasma (plasmashell) não respondeu em 15 s; a barra e a dock ficam para o próximo 'cyberkde on'." "Plasma (plasmashell) did not answer within 15 s; the bar and dock wait for the next 'cyberkde on'.")" >&2
     return 1
   fi
   # Primeira vez: guarda os painéis originais e monta a barra. Depois disso (ex.: "cyberkde cor"), só
@@ -474,7 +474,7 @@ phase_barra-e-dock() {
   local montada
   montada=$(cat "$barra_montagem_file" 2>/dev/null || echo "tema org.kde.plasma.kickoff")
   if [[ $montada != "$(layout_preset) $(menu_plugin)" ]]; then
-    echo "  (barra montada como '${montada%% *}'; para valer '$(layout_preset)': cyberkde layout $(layout_preset) --aplicar)" >&2
+    echo "$(t "  (barra montada como '${montada%% *}'; para valer '$(layout_preset)': cyberkde layout $(layout_preset) --aplicar)" "  (bar built as '${montada%% *}'; to use '$(layout_preset)': cyberkde layout $(nome_cli "$(layout_preset)") --apply)")" >&2
   fi
   menu_kickoffs_atualizar
   if ! layout_com_dock; then
@@ -539,7 +539,7 @@ barra_responder() {  # id estado avisos...
     local corpo=${estado#\{}
     printf '{"efeito":"%s",%s,"avisos":%s}\n' "$id" "${corpo%\}}" "$(json_list_str "$@")" >&3
   else
-    echo "$id: $estado"
+    echo "$(nome_cli "$id"): $estado"
     local a
     for a in "$@"; do echo "$(t Aviso Note): $a" >&2; done
   fi
@@ -574,7 +574,7 @@ efeito_cmd_layout() {
   local p=${1:-}
   if [[ -z $p ]]; then barra_responder layout "$(efeito_estado_layout)"; return; fi
   [[ $# == 1 && ( " ${layout_presets[*]} " == *" $p "* || $p == manter ) ]] ||
-    cor_exit 2 "$(t "uso: cyberkde efeito layout [tema|duas-telas|compacto|lateral|manter] [--json]" "usage: cyberkde efeito layout [tema|duas-telas|compacto|lateral|manter] [--json]")"
+    cor_exit 2 "$(t "uso: cyberkde efeito layout [tema|duas-telas|compacto|lateral|manter] [--json]" "usage: cyberkde effect layout [theme|two-screens|compact|side|keep] [--json]")"
   layout_trocar "$p"
 }
 
@@ -590,7 +590,7 @@ layout_trocar() {  # preset
     if [[ $p == manter ]]; then
       if fase_ligada barra-e-dock; then exec 9>&-; sem_travas "$project/scripts/cyberkde" off barra-e-dock >&2 || true; fi
     elif fase_ligada barra-e-dock; then
-      barra_reaplicar refazer || avisos+=("$(t "A remontagem não terminou; rode cyberkde layout $p --aplicar de novo." "Rebuilding did not finish; run cyberkde layout $p --aplicar again.")")
+      barra_reaplicar refazer || avisos+=("$(t "A remontagem não terminou; rode cyberkde layout $p --aplicar de novo." "Rebuilding did not finish; run cyberkde layout $(nome_cli "$p") --apply again.")")
     else
       barra_reaplicar dock || true
     fi
@@ -627,7 +627,7 @@ efeito_cmd_dock() {
       *) bad=1; shift ;;
     esac
   done
-  (( bad == 0 )) || cor_exit 2 "$(t "uso: cyberkde efeito dock [--indicador linha|ponto] [--zoom on|off] [--lancamento on|off] [--json]" "usage: cyberkde efeito dock [--indicador linha|ponto] [--zoom on|off] [--lancamento on|off] [--json]")"
+  (( bad == 0 )) || cor_exit 2 "$(t "uso: cyberkde efeito dock [--indicador linha|ponto] [--zoom on|off] [--lancamento on|off] [--json]" "usage: cyberkde effect dock [--indicator line|dot] [--zoom on|off] [--launch on|off] [--json]")"
   local -a avisos=()
   if [[ -n $ind$zoom$lanc ]]; then
     take_lock || cor_exit 3 "$(t "ocupado: outra execução do cyberkde está em andamento" "busy: another cyberkde run is in progress")"
@@ -660,7 +660,7 @@ efeito_cmd_menu() {
   local m=${1:-} antes
   if [[ -z $m ]]; then barra_responder menu "$(efeito_estado_menu)"; return; fi
   [[ $# == 1 && ( $m == padrao || $m == lista || $m == grade || $m == tela-cheia ) ]] ||
-    cor_exit 2 "$(t "uso: cyberkde efeito menu [padrao|lista|grade|tela-cheia] [--json]" "usage: cyberkde efeito menu [padrao|lista|grade|tela-cheia] [--json]")"
+    cor_exit 2 "$(t "uso: cyberkde efeito menu [padrao|lista|grade|tela-cheia] [--json]" "usage: cyberkde effect menu [default|list|grid|fullscreen] [--json]")"
   take_lock || cor_exit 3 "$(t "ocupado: outra execução do cyberkde está em andamento" "busy: another cyberkde run is in progress")"
   antes=$(menu_plugin)
   mkdir -p -- "$(dirname -- "$efeitos_file")"

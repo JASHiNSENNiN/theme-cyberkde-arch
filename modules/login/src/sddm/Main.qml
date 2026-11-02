@@ -132,7 +132,7 @@ Item {
                 spacing: 10
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "NÓ"
+                    text: CK.tx("NÓ", "NODE")
                     color: CK.txt2
                     font.family: CK.fontUi
                     font.pixelSize: 11
@@ -240,7 +240,7 @@ Item {
             Column {
                 spacing: 4
                 Text {
-                    text: "Enter entra  ·  Tab alterna os campos  ·  Esc fecha as listas"
+                    text: CK.tx("Enter entra  ·  Tab alterna os campos  ·  Esc fecha as listas", "Enter logs in  ·  Tab switches fields  ·  Esc closes lists")
                     color: CK.txt2
                     font.family: CK.fontUi
                     font.pixelSize: 13
@@ -248,7 +248,7 @@ Item {
                 Text {
                     readonly property var layouts: root.kbd && root.kbd.layouts ? root.kbd.layouts : []
                     visible: layouts.length > 1
-                    text: visible ? "Teclado: " + layouts[root.kbd.currentLayout].longName : ""
+                    text: visible ? CK.tx("Teclado: ", "Keyboard: ") + layouts[root.kbd.currentLayout].longName : ""
                     color: CK.txt2
                     font.family: CK.fontUi
                     font.pixelSize: 13
@@ -267,22 +267,22 @@ Item {
             Reveal {
                 t: root.t; start: 460; dx: 8
                 visible: !!sddm.canSuspend
-                CyberButton { text: "Suspender"; icon: "suspend"; onClicked: sddm.suspend() }
+                CyberButton { text: CK.tx("Suspender", "Sleep"); icon: "suspend"; onClicked: sddm.suspend() }
             }
             Reveal {
                 t: root.t; start: 490; dx: 8
                 visible: !!sddm.canHibernate
-                CyberButton { text: "Hibernar"; icon: "hibernate"; onClicked: sddm.hibernate() }
+                CyberButton { text: CK.tx("Hibernar", "Hibernate"); icon: "hibernate"; onClicked: sddm.hibernate() }
             }
             Reveal {
                 t: root.t; start: 520; dx: 8
                 visible: !!sddm.canReboot
-                CyberButton { text: "Reiniciar"; icon: "reboot"; onClicked: sddm.reboot() }
+                CyberButton { text: CK.tx("Reiniciar", "Restart"); icon: "reboot"; onClicked: sddm.reboot() }
             }
             Reveal {
                 t: root.t; start: 550; dx: 8
                 visible: !!sddm.canPowerOff
-                CyberButton { text: "Desligar"; icon: "power"; onClicked: sddm.powerOff() }
+                CyberButton { text: CK.tx("Desligar", "Shut down"); icon: "power"; onClicked: sddm.powerOff() }
             }
         }
     }
@@ -290,7 +290,7 @@ Item {
     Connections {
         target: sddm
         function onLoginFailed() {
-            panel.fail("Senha incorreta. Confira e tente de novo.")
+            panel.fail(CK.tx("Senha incorreta. Confira e tente de novo.", "Wrong password. Check it and try again."))
         }
         function onLoginSucceeded() {
             // O SDDM encerra a tela a qualquer momento depois disso; a saída é só um fade curto.

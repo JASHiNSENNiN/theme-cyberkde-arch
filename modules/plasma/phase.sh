@@ -90,7 +90,7 @@ plasma_restart_latte() {
   systemctl --user start "$autostart" >/dev/null 2>&1 || true
   sleep 1
   if ! pgrep -x latte-dock-ng >/dev/null; then
-    echo "Aviso: o Latte Dock não voltou depois do reinício. Rode:" \
+    echo "$(t "Aviso: o Latte Dock não voltou depois do reinício. Rode:" "Note: Latte Dock did not come back after the restart. Run:")" \
       "systemctl --user start '$autostart'" >&2
   fi
 }
@@ -107,30 +107,48 @@ plasma_latte_popups() {
     sed "s/$from/: PlasmaCore.AppletPopup.AtScreenEdges \/\/ CyberKDE: sem AtPanelEdges (menu flutua acima do dock)/" "$qml" |
       put_file "$qml"
   elif ! grep -qF 'CyberKDE: sem AtPanelEdges' "$qml"; then
-    echo "plasma: o CompactApplet.qml do Latte mudou; os menus do dock ficam como estão." >&2
+    echo "$(t "plasma: o CompactApplet.qml do Latte mudou; os menus do dock ficam como estão." "plasma: Latte's CompactApplet.qml changed; the dock menus stay as they are.")" >&2
   fi
 }
 
 plasma_keep_original_panel() {
-  local theme_dir="$data/plasma/desktoptheme/CyberKDE" orig="" dir f
+  local orig=""
   [[ -f $ledger ]] && orig=$(awk -F'\t' '$1 == "plasmarc" && $2 == "Theme" && $3 == "name" {print $4}' "$ledger")
   [[ -z $orig ]] && orig=$(kreadconfig6 --file plasmarc --group Theme --key name --default default)
   [[ $orig == "$absent" || $orig == CyberKDE ]] && orig=default
+  plasma_copiar_painel "$orig"
+  # Filete neon (opção 1 da barra, escolhida em 14/09): linha na cor de destaque na borda de baixo,
+  # desenhada pela própria moldura. Para a moldura original pura: CYBERKDE_FILETE=nao cyberkde on
+  if [[ ${CYBERKDE_FILETE:-sim} != nao ]] && ! plasma_filete; then
+    # Estilo cuja peça "bottom" não é um grupo com retângulo (ex.: um <use> espelhado do "top", como no
+    # CachyOS-Nord-round): o filete não tem onde entrar. Usa a moldura do Breeze, a das capturas.
+    if [[ $orig != default ]]; then
+      echo "$(t "plasma: a moldura do painel do estilo $orig não aceita o filete; usando a do Breeze." "plasma: the panel frame of the $orig style cannot take the neon line; using the Breeze frame.")" >&2
+      plasma_copiar_painel default
+      plasma_filete || echo "$(t "plasma: filete não aplicado; a barra fica com a moldura sem a linha neon." "plasma: neon line not applied; the bar keeps its frame without it.")" >&2
+    else
+      echo "$(t "plasma: filete não aplicado; a barra fica com a moldura sem a linha neon." "plasma: neon line not applied; the bar keeps its frame without it.")" >&2
+    fi
+  fi
+}
+
+plasma_copiar_painel() {  # estilo do Plasma de onde vem a moldura do painel
+  local theme_dir="$data/plasma/desktoptheme/CyberKDE" dir f
   find "$theme_dir" -path '*widgets/panel-background.*' -delete
-  for dir in "$data/plasma/desktoptheme/$orig" "/usr/share/plasma/desktoptheme/$orig"; do
+  for dir in "$data/plasma/desktoptheme/$1" "/usr/share/plasma/desktoptheme/$1"; do
     [[ -d $dir ]] || continue
     while IFS= read -r f; do
       install -Dm644 "$dir/$f" "$theme_dir/$f"
     done < <(cd "$dir" && find . -path '*widgets/panel-background.*')
     break
   done
-  # Filete neon (opção 1 da barra, escolhida em 14/09): linha na cor de destaque na borda de baixo,
-  # desenhada pela própria moldura. Para a moldura original pura: CYBERKDE_FILETE=nao cyberkde on
-  if [[ ${CYBERKDE_FILETE:-sim} != nao ]]; then
-    for f in "$theme_dir"/widgets/panel-background.svg*; do
-      if [[ -f $f ]]; then python3 "$project/modules/plasma/generator/panel_filete.py" "$f" "$(accent_color)"; fi
-    done
-  fi
+}
+
+plasma_filete() {  # 0 = filete em todas as molduras do painel
+  local f
+  for f in "$data/plasma/desktoptheme/CyberKDE"/widgets/panel-background.svg*; do
+    if [[ -f $f ]]; then python3 "$project/modules/plasma/generator/panel_filete.py" "$f" "$(accent_color)" 2>/dev/null || return 1; fi
+  done
 }
 
 phase_plasma() {

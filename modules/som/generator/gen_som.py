@@ -32,7 +32,7 @@ VARIANTES = {
     "padrao": dict(nome="CyberKDE", comentario="Sons de interface cyberpunk sintetizados (bipes, varreduras e glitches discretos)",
                    comentario_en="Synthesized cyberpunk interface sounds (beeps, sweeps and subtle glitches)",
                    rms_db=-27.0, pico=0.45, escala=1.0, glitch=1.0, harm=1.0),
-    "discreto": dict(nome="CyberKDE (discreto)", comentario="Versão suave e curta dos sons do CyberKDE",
+    "discreto": dict(nome="CyberKDE (subtle)", comentario="Versão suave e curta dos sons do CyberKDE",
                      comentario_en="Softer, shorter version of the CyberKDE sounds",
                      rms_db=-32.0, pico=0.28, escala=0.7, glitch=0.0, harm=0.25),
 }
@@ -368,8 +368,8 @@ def index_theme(variante):
     return (
         "[Sound Theme]\n"
         f"Name={v['nome']}\n"
-        f"Comment={v['comentario']}\n"
-        f"Comment[en]={v['comentario_en']}\n"
+        f"Comment={v['comentario_en']}\n"
+        f"Comment[pt_BR]={v['comentario']}\n"
         "Inherits=ocean\n"  # eventos que o tema não cobre caem no Ocean, o padrão do KDE
         "Directories=stereo\n"
         "\n"

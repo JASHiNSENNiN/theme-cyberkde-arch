@@ -99,10 +99,13 @@ Item {
         function onFailed(kind) {
             if (kind != 0)  // falhas de leitor de digital/cartão não passam pela senha
                 return
-            panel.fail("Senha incorreta. Aguarde um instante e tente de novo.")
+            panel.fail(CK.tx("Senha incorreta. Aguarde um instante e tente de novo.", "Wrong password. Wait a moment and try again."))
             graceTimer.restart()
         }
         function onSucceeded() {
+            // Plasma 6.8+: encerra os outros autenticadores (digital, cartão) para não estourar o tempo deles.
+            if (typeof authenticator.stopAuthenticating === "function")
+                authenticator.stopAuthenticating()
             if (authenticator.hadPrompt) {
                 if (root.sucesso) {
                     panel.concedido()
@@ -113,7 +116,7 @@ Item {
             } else {
                 root.noPassword = true
                 panel.busy = false
-                panel.info("Nenhuma senha é necessária: use Desbloquear.")
+                panel.info(CK.tx("Nenhuma senha é necessária: use Desbloquear.", "No password needed: press Unlock."))
             }
         }
         function onInfoMessageChanged() {
@@ -176,7 +179,7 @@ Item {
             spacing: 10
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: "BLOQUEADA ÀS"
+                text: CK.tx("BLOQUEADA ÀS", "LOCKED AT")
                 color: CK.txt2
                 font.family: CK.fontUi
                 font.pixelSize: 11
@@ -281,7 +284,7 @@ Item {
         x: 64
         anchors.bottom: parent.bottom; anchors.bottomMargin: 60
         Text {
-            text: "Enter desbloqueia  ·  Esc apaga a tela"
+            text: CK.tx("Enter desbloqueia  ·  Esc apaga a tela", "Enter unlocks  ·  Esc blanks the screen")
             color: CK.txt2
             font.family: CK.fontUi
             font.pixelSize: 13
@@ -298,12 +301,12 @@ Item {
         Reveal {
             t: root.t; start: 460; dx: 8
             visible: root.suspendToRamSupported
-            CyberButton { text: "Suspender"; icon: "suspend"; activeFocusOnTab: false; onClicked: root.suspendToRam() }
+            CyberButton { text: CK.tx("Suspender", "Sleep"); icon: "suspend"; activeFocusOnTab: false; onClicked: root.suspendToRam() }
         }
         Reveal {
             t: root.t; start: 490; dx: 8
             visible: root.suspendToDiskSupported
-            CyberButton { text: "Hibernar"; icon: "hibernate"; activeFocusOnTab: false; onClicked: root.suspendToDisk() }
+            CyberButton { text: CK.tx("Hibernar", "Hibernate"); icon: "hibernate"; activeFocusOnTab: false; onClicked: root.suspendToDisk() }
         }
     }
 }

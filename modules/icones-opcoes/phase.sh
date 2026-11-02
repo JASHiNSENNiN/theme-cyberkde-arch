@@ -106,7 +106,7 @@ efeito_cmd_icones() {
   done
   local p
   for p in "${pares[@]}"; do
-    [[ $p != invalido=1 ]] || cor_exit 2 "$(t "uso: cyberkde efeito icones [padrao|alt|<grupo>=<padrao|alt>...] [--json] (grupos: ${icones_grupos[*]})" "usage: cyberkde efeito icones [padrao|alt|<group>=<padrao|alt>...] [--json] (groups: ${icones_grupos[*]})")"
+    [[ $p != invalido=1 ]] || cor_exit 2 "$(t "uso: cyberkde efeito icones [padrao|alt|<grupo>=<padrao|alt>...] [--json] (grupos: ${icones_grupos[*]})" "usage: cyberkde effect icons [default|alt|<group>=<default|alt>...] [--json] (groups: ${icones_grupos[*]})")"
   done
   local -a avisos=()
   if (( ${#pares[@]} )); then

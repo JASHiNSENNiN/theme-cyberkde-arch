@@ -1,0 +1,72 @@
+diff --git a/app/indicator/factory.cpp b/app/indicator/factory.cpp
+index 4cd073c..d2ba99e 100644
+--- a/app/indicator/factory.cpp
++++ b/app/indicator/factory.cpp
+@@ -18,6 +18,7 @@
+ #include <QFile>
+ #include <QMessageBox>
+ #include <QProcess>
++#include <QRegularExpression>
+ #include <QSharedPointer>
+ #include <QStandardPaths>
+ #include <QTemporaryDir>
+@@ -385,6 +386,16 @@ Latte::ImportExport::State Factory::importIndicatorFile(QString compressedFile)
+ 
+     KPluginMetaData metadata = readIndicatorMetaData(metadataFile);
+ 
++    // The plugin id comes from the untrusted archive and becomes a directory name that is
++    // removed and replaced below: reject anything that could escape the indicators folder.
++    static const QRegularExpression safePluginId(QStringLiteral("^[A-Za-z0-9][A-Za-z0-9._-]*$"));
++    if (metadataAreValid(metadata)
++        && (!safePluginId.match(metadata.pluginId()).hasMatch() || metadata.pluginId().contains(QLatin1String("..")))) {
++        qWarning() << "Indicator import rejected, unsafe plugin id:" << metadata.pluginId();
++        showNotificationError();
++        return Latte::ImportExport::FailedState;
++    }
++
+     if (metadataAreValid(metadata)) {
+         QStringList standardPaths = Latte::Layouts::Importer::standardPaths();
+         QString installPath = standardPaths[0] + QLatin1String("/latte/indicators/") + metadata.pluginId();
+diff --git a/app/knscompat.cpp b/app/knscompat.cpp
+index 5705f5d..27c0819 100644
+--- a/app/knscompat.cpp
++++ b/app/knscompat.cpp
+@@ -9,6 +9,7 @@
+ 
+ #include <QDebug>
+ #include <QDir>
++#include <QDirIterator>
+ #include <QFile>
+ #include <QFileInfo>
+ #include <QLibraryInfo>
+@@ -508,6 +509,21 @@ static bool symlinkChecked(const QString &target, const QString &link)
+     return QFile::link(target, link);
+ }
+ 
++//! True only for override folders written by older Latte versions: those mirror the
++//! system modules with symlinks into /usr. A module the user installed there has real
++//! files instead, and must not be deleted.
++static bool isLegacyLatteOverride(const QString &dir)
++{
++    QDirIterator it(dir, QDir::AllEntries | QDir::NoDotAndDotDot | QDir::System, QDirIterator::Subdirectories);
++    while (it.hasNext()) {
++        const QFileInfo info(it.next());
++        if (info.isSymLink() && info.symLinkTarget().startsWith(QLatin1String("/usr/"))) {
++            return true;
++        }
++    }
++    return false;
++}
++
+ void ensureKnsCompat()
+ {
+     if (qEnvironmentVariableIntValue(kDisableCompatEnv) == 1) {
+@@ -528,7 +544,7 @@ void ensureKnsCompat()
+                                         oldBase + QStringLiteral("/org/kde/newstuff"),
+                                     };
+         for (const auto &d : oldDirs) {
+-            if (QFile::exists(d + QStringLiteral("/qmldir"))) {
++            if (QFile::exists(d + QStringLiteral("/qmldir")) && isLegacyLatteOverride(d)) {
+                 qCDebug(latteApp) << "KnsCompat: removing old overrides from" << d;
+                 QDir(d).removeRecursively();
+             }

@@ -66,6 +66,14 @@ for f in /usr/lib/*/qt6/plugins/styles/libkvantum.so /usr/lib{64,}/qt6/plugins/s
 done
 unset f
 kvantum_ok() { [[ -n $kvantum_plugin ]]; }
+# Arch e derivadas (pacman, sem apt): outros nomes de pacote, PKGBUILD no lugar do .deb.
+eh_arch() { command -v pacman >/dev/null && ! command -v apt-get >/dev/null; }
+instalar_cmd() { if eh_arch; then echo "sudo pacman -S --needed"; else echo "sudo apt install"; fi; }
+# Versão do Plasma pelo gerenciador de pacotes (funciona fora da sessão gráfica); nada se não achar.
+plasma_versao_pacote() {
+  { dpkg-query -W -f='${Version}' plasma-workspace 2>/dev/null || pacman -Q plasma-workspace 2>/dev/null | awk '{print $2}'; } |
+    sed 's/^[0-9]*://; s/[^0-9.].*//' || true
+}
 files="$state/files.tsv"  # arquivos criados/substituídos: destino<TAB>backup (ou -)
 # De qual fase veio cada linha do ledger e do files.tsv. Fica num arquivo À PARTE, e não numa coluna a
 # mais: as cópias anteriores do cyberkde leem o ledger com "read -r arquivo grupo chave original", e o
@@ -110,7 +118,7 @@ take_lock() {
   flock -n 9
 }
 busy() {
-  echo "Outra execução do cyberkde está em andamento; tente de novo daqui a pouco." >&2
+  echo "$(t "Outra execução do cyberkde está em andamento; tente de novo daqui a pouco." "Another cyberkde run is in progress; try again in a moment.")" >&2
   exit 3
 }
 
@@ -178,7 +186,7 @@ cor_marker="$state/cor-incompleta"
 cor_interrupted() {
   trap - TERM INT HUP
   pgrep -x plasmashell >/dev/null || systemctl --user start plasma-plasmashell.service >/dev/null 2>&1 || true
-  cor_exit 5 "interrompido: rode o mesmo comando de novo para completar"
+  cor_exit 5 "$(t "interrompido: rode o mesmo comando de novo para completar" "interrupted: run the same command again to finish")"
 }
 json_list() { local out="" i; for i in "$@"; do out+="${out:+,}\"$i\""; done; printf '[%s]' "$out"; }
 json_list_str() { local out="" i; for i in "$@"; do out+="${out:+,}$(json_str "$i")"; done; printf '[%s]' "$out"; }
@@ -186,8 +194,106 @@ json_list_str() { local out="" i; for i in "$@"; do out+="${out:+,}$(json_str "$
 # Idioma das mensagens: o painel tem interface em inglês e pede "--lang en" (ou CYBERKDE_LANG=en).
 # Vale para os "avisos" e o "erro" dos JSON, o "checar" e as mensagens dos comandos novos; o resto
 # do texto do CLI continua em português.
-cyberkde_lang=${CYBERKDE_LANG:-pt}
+# Default: the session language ($LC_ALL/$LC_MESSAGES/$LANG); Portuguese only for pt* locales.
+cyberkde_lang=${CYBERKDE_LANG:-${LC_ALL:-${LC_MESSAGES:-${LANG:-en}}}}
+idioma_normaliza() { case $cyberkde_lang in pt*) cyberkde_lang=pt ;; *) cyberkde_lang=en ;; esac; }
+idioma_normaliza
 t() { if [[ $cyberkde_lang == en* ]]; then printf '%s' "$2"; else printf '%s' "$1"; fi; }  # pt en
+
+# English command line. English names are translated to the Portuguese ones before dispatch, so
+# both work (the panel and older scripts keep using Portuguese). Exact tokens only: paths, colors
+# and other free text pass through untouched.
+declare -A cli_en_cmd=(
+  [panel]=painel [effect]=efeito [phases]=fases [check]=checar [animated]=animados
+  [wallpaper]=papel [color]=cor [original]=padrao
+)
+declare -A cli_en_flag=(
+  [--list]=--lista [--available]=--disponivel [--check]=--checar [--apply]=--aplicar
+  [--no-sudo]=--sem-sudo [--progress]=--progresso [--secondary]=--secundaria
+  [--open]=--abrir [--close]=--fechar [--first-time]=--primeira-vez [--open-duration]=--duracao-abrir
+  [--close-duration]=--duracao-fechar [--first-time-duration]=--duracao-primeira-vez
+  [--intensity]=--intensidade [--lines]=--linhas [--colors]=--cores [--indicator]=--indicador
+  [--launch]=--lancamento [--size]=--tamanho [--where]=--onde [--attention]=--atencao
+  [--success]=--sucesso [--names]=--nomes [--entrance]=--entrada [--panel]=--painel
+  [--background]=--fundo [--variant]=--variante [--density]=--densidade [--direction]=--direcao
+  [--vignette]=--vinheta [--curvature]=--curvatura [--interval]=--intervalo [--data]=--dados
+)
+declare -A cli_en_val=(
+  # parts (on/off <part>)
+  [windows]=janelas [animated-dolphin]=carregamento [icons]=icones [system-icons]=icones-sistema
+  [wallpapers]=papeis-de-parede [bar-and-dock]=barra-e-dock [sound]=som [lock-screen]=login-bloqueio
+  # effects (effect <id>)
+  [konsole-cascade]=konsole-cascata [konsole-rain]=konsole-chuva [konsole-grid]=konsole-grade
+  [konsole-sweep]=konsole-varredura [konsole-sparks]=konsole-faiscas [konsole-error]=konsole-erro
+  [konsole-bell]=konsole-campainha [motion]=movimento [modal-dim]=modal-escurecer [click]=clique
+  [desktops]=areas [wallpaper]=papel
+  [style-preset]=estilo-preset [style-selection]=estilo-selecao [style-glow]=estilo-brilho
+  [style-cut]=estilo-corte [style-density]=estilo-densidade [style-tabs]=estilo-abas
+  [style-progress]=estilo-progresso [style-marker]=estilo-marcador [style-frame]=estilo-moldura
+  [style-focus]=estilo-foco [style-parts]=estilo-pecas [style-texture]=estilo-textura
+  [style-konsole-tabs]=estilo-konsole-abas [style-tooltip]=estilo-dica [style-fields]=estilo-campos
+  [style-states]=estilo-estados
+  # window animations
+  [frame]=moldura [data]=dados [hologram]=holograma [decode]=decodificar [chamfer]=chanfro
+  [shards]=cacos [converge]=convergir [disintegrate]=desintegrar [pulse]=pulso [blinds]=persiana
+  [doors]=portas
+  # values
+  [none]=nenhuma [default]=padrao [full]=completo [short]=curto [reduced]=reduzido [minimal]=minimo
+  [crosshair]=mira [subtle]=discreto [list]=lista [grid]=grade [fullscreen]=tela-cheia
+  [theme]=tema [two-screens]=duas-telas [compact]=compacto [side]=lateral [keep]=manter
+  [line]=linha [dot]=ponto [simple]=simples [fall]=cair [rise]=subir [left]=esquerda
+  [center]=centro [slices]=fatias
+  [neo-military]=neomilitar [dense-military]=militar-denso [clean-netwatch]=netwatch-limpo
+  [arasaka-luxury]=arasaka-luxo [worn-terminal]=terminal-gasto [neon-kitsch]=kitsch-neon
+  [reading]=leitura [marker]=marcador [block]=bloco [brackets]=colchetes [underline]=sublinhado
+  [soft]=suave [corner]=canto [opposite]=oposto [top]=topo [octagon]=octogono [straight]=reto
+  [spacious]=espacoso [card]=cartao [segmented]=segmentada [hatched]=hachurada [dots]=pontos
+  [plain]=lisa [filled]=cheio [partial]=parcial [outline]=contorno [corner-bracket]=cantoneira
+  [mixed]=misto [ring]=anel [thick]=grosso [technical]=tecnico [stripe]=faixa [box]=caixa
+  [alert]=alerta [red]=vermelho
+)
+cli_en_para_pt() {  # args... -> cli_args (array)
+  local a k v livre=0
+  cli_args=()
+  if (( $# )); then if [[ -n $1 ]]; then cli_args+=("${cli_en_cmd[$1]:-$1}"); else cli_args+=(""); fi; shift; fi
+  # Commands whose arguments are free text (image path, color, corporation id, app name): only
+  # their own English keywords are translated, never other words.
+  case ${cli_args[0]:-} in papel | cor | corp | padrao) livre=1 ;; esac
+  for a in "$@"; do
+    if [[ -z $a ]]; then cli_args+=("")
+    elif (( livre )) && [[ $a != --* ]]; then
+      case $a in default) cli_args+=(padrao) ;; none) cli_args+=(nenhuma) ;; *) cli_args+=("$a") ;; esac
+    elif [[ $a == --*=* ]]; then
+      k=${a%%=*} v=${a#*=}
+      cli_args+=("${cli_en_flag[$k]:-$k}=$( [[ -n $v ]] && echo "${cli_en_val[$v]:-$v}" )")
+    elif [[ $a == --* ]]; then cli_args+=("${cli_en_flag[$a]:-$a}")
+    elif [[ $a == [a-z]*=* && $a != */* ]]; then  # icones music=alt
+      k=${a%%=*} v=${a#*=}
+      cli_args+=("$k=$( [[ -n $v ]] && echo "${cli_en_val[$v]:-$v}" )")
+    else cli_args+=("${cli_en_val[$a]:-$a}"); fi
+  done
+  # Same English word, different Portuguese gender per effect.
+  if [[ ${cli_args[0]:-} == efeito && ${#cli_args[@]} -gt 2 ]]; then
+    local i pre val
+    for (( i = 2; i < ${#cli_args[@]}; i++ )); do
+      pre="" val=${cli_args[i]}
+      if [[ $val == --*=* ]]; then pre=${val%%=*}= val=${val#*=}; fi
+      case ${cli_args[1]}:$val in
+        splash:nenhuma | estilo-marcador:nenhuma) val=nenhum ;;
+        login:completo) val=completa ;;
+        login:curto) val=curta ;;
+        estilo-abas:sublinhado) val=sublinhada ;;
+      esac
+      cli_args[i]=$pre$val
+    done
+  fi
+}
+# English name of a Portuguese id, for lists shown in English.
+declare -A cli_pt_en=()
+for _k in "${!cli_en_val[@]}"; do cli_pt_en[${cli_en_val[$_k]}]=$_k; done
+for _k in "${!cli_en_flag[@]}"; do cli_pt_en[${cli_en_flag[$_k]}]=$_k; done
+unset _k
+nome_cli() { if [[ $cyberkde_lang == en ]]; then printf '%s' "${cli_pt_en[$1]:-$1}"; else printf '%s' "$1"; fi; }
 
 # Comando que completa uma aplicação que ficou pendente de sudo, para a mensagem e para o campo
 # "retomar" do JSON (o comando exato; null quando não falta nada). Pelo "corp" é o próprio "corp":
@@ -238,9 +344,9 @@ cmd_cor() {
   done
   # --json: a saída padrão fica só com a linha JSON; as mensagens vão para a saída de erro.
   if (( cor_json )); then exec 3>&1 1>&2; else exec 3>&1; fi
-  (( bad == 0 )) || cor_exit 2 "uso: cyberkde cor [#RRGGBB|padrao] [--secundaria #RRGGBB] [--sem-sudo] [--json] [--progresso]"
+  (( bad == 0 )) || cor_exit 2 "$(t "uso: cyberkde cor [#RRGGBB|padrao] [--secundaria #RRGGBB] [--sem-sudo] [--json] [--progresso]" "usage: cyberkde color [#RRGGBB|default] [--secondary #RRGGBB] [--no-sudo] [--json] [--progress]")"
   if [[ -n $secundaria && ( -z $value || $value == padrao || -n $cor_corp ) ]]; then
-    cor_exit 2 "uso: --secundaria vale junto com uma cor: cyberkde cor '#RRGGBB' --secundaria '#RRGGBB'"
+    cor_exit 2 "$(t "uso: --secundaria vale junto com uma cor: cyberkde cor '#RRGGBB' --secundaria '#RRGGBB'" "usage: --secondary goes with a color: cyberkde color '#RRGGBB' --secondary '#RRGGBB'")"
   fi
   if [[ -z $value ]]; then  # só leitura: não trava nem regenera nada
     local current aplicada ligado=false
@@ -253,25 +359,25 @@ cmd_cor() {
       printf '{"cor":"%s","corAplicada":"%s","padrao":%s,"temaLigado":%s,"completa":%s}\n' \
         "$current" "$aplicada" "$(accent_is_default)" "$ligado" "$completa" >&3
     else
-      echo "Cor de destaque: $current$([[ -s $accent_file ]] || echo ' (padrão)')"
+      echo "$(t "Cor de destaque: $current$([[ -s $accent_file ]] || echo ' (padrão)')" "Accent color: $current$([[ -s $accent_file ]] || echo ' (default)')")"
       if [[ $aplicada != "$current" ]]; then
-        echo "  (o tema usa $aplicada: a cor pedida não teria contraste para ler sobre o fundo)"
+        echo "$(t "  (o tema usa $aplicada: a cor pedida não teria contraste para ler sobre o fundo)" "  (the theme uses $aplicada: the requested color would not be readable on the background)")"
       fi
       if [[ $completa == false ]]; then
-        echo "A última troca de cor foi interrompida; rode o mesmo comando de novo para completar."
+        echo "$(t "A última troca de cor foi interrompida; rode o mesmo comando de novo para completar." "The last color change was interrupted; run the same command again to finish.")"
       fi
     fi
     return
   fi
-  [[ $value == padrao || $value =~ ^#?[0-9A-Fa-f]{6}$ ]] || cor_exit 2 "cor inválida: use #RRGGBB ou padrao"
-  take_lock || cor_exit 3 "ocupado: outra execução do cyberkde está em andamento"
+  [[ $value == padrao || $value =~ ^#?[0-9A-Fa-f]{6}$ ]] || cor_exit 2 "$(t "cor inválida: use #RRGGBB ou padrao" "invalid color: use #RRGGBB or default")"
+  take_lock || cor_exit 3 "$(t "ocupado: outra execução do cyberkde está em andamento" "busy: another cyberkde run is in progress")"
   # Com o CyberKDE ligado a cor reaplica fases; os dois temas ligados ao mesmo tempo é estado
   # inconsistente, e reaplicar gravaria por cima do AppleKDE.
   if tema_ligado && applekde_ligado; then
-    cor_exit 1 "o AppleKDE também está ligado: rode 'cyberkde on' (ele desliga o AppleKDE antes) e depois a cor. Nada foi aplicado."
+    cor_exit 1 "$(t "o AppleKDE também está ligado: rode 'cyberkde on' (ele desliga o AppleKDE antes) e depois a cor. Nada foi aplicado." "AppleKDE is also on: run 'cyberkde on' (it turns AppleKDE off first), then the color. Nothing was applied.")"
   fi
   set -E
-  trap 'cor_exit 1 "falha ao aplicar a cor (detalhes na saída de erro)"' ERR
+  trap 'cor_exit 1 "$(t "falha ao aplicar a cor (detalhes na saída de erro)" "failed to apply the color (details on standard error)")"' ERR
   trap cor_interrupted TERM INT HUP
   # Marca de aplicação em andamento: só é apagada no fim. Se o processo morrer no meio (mesmo com
   # SIGKILL), a leitura da cor devolve "completa":false, e basta rodar o mesmo comando de novo.
@@ -303,13 +409,13 @@ cmd_cor() {
   if tema_ligado; then ligado=true; fi
   # A mensagem só promete regenerar quando vai mesmo: com o tema desligado não há o que regenerar.
   if [[ $ligado == true ]]; then
-    echo "Cor de destaque: $accent — regenerando o tema…"
+    echo "$(t "Cor de destaque: $accent — regenerando o tema…" "Accent color: $accent, regenerating the theme…")"
   else
     echo "Cor de destaque: $accent"
   fi
   if [[ $aplicada != "$accent" ]]; then
-    echo "  Contraste: $accent não leria sobre o fundo do tema; o tema usa $aplicada." \
-      "A cor pedida continua sendo a sua e é a que aparece em 'cyberkde cor'."
+    echo "$(t "  Contraste: $accent não leria sobre o fundo do tema; o tema usa $aplicada." "  Contrast: $accent would not be readable on the theme background; the theme uses $aplicada.")" \
+      "$(t "A cor pedida continua sendo a sua e é a que aparece em 'cyberkde cor'." "Your requested color is kept, and it is the one 'cyberkde color' shows.")"
   fi
   # Papel por corporação (papel_modo corp): o papel passa a ser o da corporação escolhida, e com ele o
   # bloqueio e o login. Com modo fixo (a pessoa escolheu outro), a corporação não mexe no papel.
@@ -345,7 +451,7 @@ cmd_cor() {
     # Papel da corporação (opção "corp", fase ligada): a imagem dela e o bloqueio, antes das fases, para
     # o login (que segue o papel, "login --fundo papel") já ver a imagem nova.
     if declare -F papel_corp_seguir >/dev/null; then
-      papel_corp_seguir || echo "Aviso: o papel da corporação não foi aplicado." >&2
+      papel_corp_seguir || echo "$(t "Aviso: o papel da corporação não foi aplicado." "Note: the corporation wallpaper was not applied.")" >&2
     fi
     # O login e o bloqueio acompanham o papel ("login --fundo papel"), sem precisar de um "on login".
     # O que ficar sem sudo (a tela do SDDM) entra nas pendências do login, no laço abaixo.
@@ -358,7 +464,7 @@ cmd_cor() {
       if ("phase_$p"); then
         if [[ -s $sem_sudo_pendentes ]]; then
           pendentes+=("$p")
-          echo "  … $p (pendente: precisa de sudo)"
+          echo "$(t "  … $p (pendente: precisa de sudo)" "  … $p (pending: needs sudo)")"
         else
           aplicadas+=("$p")
           echo "  ✓ $p"
@@ -379,14 +485,14 @@ cmd_cor() {
     progress painel  # o painel guarda cache do tema e dos ícones
     if restart_plasmashell; then reiniciado=true; fi
     if (( ${#pendentes[@]} )); then
-      echo "Aplicado, menos: ${pendentes[*]} (precisa de sudo). Para completar, rode no terminal: $(cor_retomar)"
+      echo "$(t "Aplicado, menos: ${pendentes[*]} (precisa de sudo). Para completar, rode no terminal: $(cor_retomar)" "Applied, except: ${pendentes[*]} (needs sudo). To finish, run in a terminal: $(cor_retomar)")"
     else
-      echo "Pronto. Reabra os aplicativos para ver a cor nova."
+      echo "$(t "Pronto. Reabra os aplicativos para ver a cor nova." "Done. Reopen your apps to see the new color.")"
     fi
   else
     # Com o tema desligado, regenerar seria trabalho jogado fora: ninguém lê esses arquivos e o
     # "cyberkde on" chama install_files com a cor do momento (seriam ~25 s de CPU à toa).
-    echo "Tema desligado: a cor vale no próximo 'cyberkde on'."
+    echo "$(t "Tema desligado: a cor vale no próximo 'cyberkde on'." "Theme is off: the color applies at the next 'cyberkde on'.")"
   fi
   progress fim
   rm -f "$sem_sudo_pendentes" "$cor_marker"
@@ -519,7 +625,7 @@ plasmashell_garantir() {
   local i
   qdbus6 org.kde.plasmashell /PlasmaShell >/dev/null 2>&1 && return 0
   if [[ -z ${CYBERKDE_CENA:-} ]] && ! pgrep -x plasmashell >/dev/null; then
-    echo "  (o plasmashell não estava rodando; iniciando o serviço antes de seguir)" >&2
+    echo "$(t "  (o plasmashell não estava rodando; iniciando o serviço antes de seguir)" "  (plasmashell was not running; starting the service first)")" >&2
     systemctl --user reset-failed plasma-plasmashell.service >/dev/null 2>&1 || true
     systemctl --user start plasma-plasmashell.service >/dev/null 2>&1 || true
   fi
@@ -536,10 +642,10 @@ plasmashell_sem_servico() {
   local i
   systemctl --user reset-failed plasma-plasmashell.service >/dev/null 2>&1 || true
   systemctl --user start plasma-plasmashell.service >/dev/null 2>&1 && return 0
-  echo "Aviso: o systemd recusou reiniciar o plasmashell; iniciando fora do serviço." >&2
+  echo "$(t "Aviso: o systemd recusou reiniciar o plasmashell; iniciando fora do serviço." "Note: systemd refused to restart plasmashell; starting it outside the service.")" >&2
   setsid plasmashell >/dev/null 2>&1 </dev/null 3>&- 4>&- 9>&- &
   for i in {1..50}; do qdbus6 org.kde.plasmashell /PlasmaShell >/dev/null 2>&1 && return 0; sleep 0.2; done
-  echo "O painel não voltou. Para recuperar: systemctl --user reset-failed plasma-plasmashell.service &&" \
+  echo "$(t "O painel não voltou. Para recuperar: systemctl --user reset-failed plasma-plasmashell.service &&" "The panel did not come back. To recover: systemctl --user reset-failed plasma-plasmashell.service &&")" \
     "systemctl --user start plasma-plasmashell.service" >&2
   return 1
 }
@@ -587,8 +693,8 @@ plasmashell_parar() {
 plasma_reiniciado=false  # o último refresh_plasmashell conseguiu? (o "off --json" informa)
 refresh_plasmashell() {
   if restart_plasmashell; then plasma_reiniciado=true; return 0; fi
-  echo "Aviso: não consegui reiniciar o plasmashell; o painel e a área de trabalho podem continuar" \
-    "com os ícones antigos. Rode: systemctl --user reset-failed plasma-plasmashell.service &&" \
+  echo "$(t "Aviso: não consegui reiniciar o plasmashell; o painel e a área de trabalho podem continuar" "Note: could not restart plasmashell; the panel and desktop may keep")" \
+    "$(t "com os ícones antigos. Rode: systemctl --user reset-failed plasma-plasmashell.service &&" "the old icons. Run: systemctl --user reset-failed plasma-plasmashell.service &&")" \
     "systemctl --user restart plasma-plasmashell.service" >&2
 }
 
@@ -658,7 +764,7 @@ install_files() {
     progress arquivos "${hook#install_}"
     "$hook"
   done
-  echo "Arquivos do tema instalados."
+  echo "$(t "Arquivos do tema instalados." "Theme files installed.")"
 }
 
 # kreadconfig6/kwriteconfig6 com grupos aninhados: "A][B][C" vira --group A --group B --group C.
@@ -921,7 +1027,7 @@ efeito_cmd_konsole-cascata() {
       *) acao=invalida ;;
     esac
   done
-  [[ $acao != invalida ]] || cor_exit 2 "$(t "uso: cyberkde efeito konsole-cascata [on|off] [--linhas 2-20] [--cores video|tema] [--json]" "usage: cyberkde efeito konsole-cascata [on|off] [--linhas 2-20] [--cores video|tema] [--json]")"
+  [[ $acao != invalida ]] || cor_exit 2 "$(t "uso: cyberkde efeito konsole-cascata [on|off] [--linhas 2-20] [--cores video|tema] [--json]" "usage: cyberkde effect konsole-cascade [on|off] [--lines 2-20] [--colors video|theme] [--json]")"
   if [[ -n $linhas ]] && ! { [[ $linhas =~ ^[0-9]+$ ]] && (( linhas >= 2 && linhas <= 20 )); }; then
     cor_exit 2 "$(t "linhas: um número de 2 a 20" "lines: a number from 2 to 20")"
   fi
@@ -948,7 +1054,7 @@ efeito_cmd_konsole-cascata() {
     if [[ $estado == *'"disponivelAoReligar":true'* ]]; then
       avisos+=("$(t "O Konsole do lançador ainda não tem a cascata; a compilação mais nova tem. Rode cyberkde on konsole-anim e abra um Konsole novo (os abertos continuam como estão)." "The launcher's Konsole does not have the cascade yet; the newer build does. Run cyberkde on konsole-anim and open a new Konsole (open ones stay as they are).")")
     else
-      avisos+=("$(t "O Konsole animado instalado é anterior à cascata: a escolha vale depois de atualizar (cyberkde animados com o pacote novo, ou cyberkde konsole-build)." "The installed animated Konsole predates the cascade: the choice applies after updating it (cyberkde animados with the new package, or cyberkde konsole-build).")")
+      avisos+=("$(t "O Konsole animado instalado é anterior à cascata: a escolha vale depois de atualizar (cyberkde animados com o pacote novo, ou cyberkde konsole-build)." "The installed animated Konsole predates the cascade: the choice applies after updating it (cyberkde animated with the new package, or cyberkde konsole-build).")")
     fi
   fi
   if (( cor_json )); then
@@ -1012,7 +1118,7 @@ movimento_nivel() {
 #   cyberkde efeito --lista [--json]
 #   cyberkde efeito <id> [opções] [--json]
 cmd_efeito() {
-  local id="" arg lista=0
+  local id="" arg lista=0 e
   local -a resto=()
   for arg in "$@"; do
     case $arg in
@@ -1041,17 +1147,18 @@ cmd_efeito() {
     if (( cor_json )); then
       printf '{"efeitos":[%s],"grupos":[%s]}\n' "$itens" "$grupos" | efeitos_com_forma >&3
     else
-      for e in "${CYBERKDE_EFEITOS[@]}"; do echo "  $e"; done
+      for e in "${CYBERKDE_EFEITOS[@]}"; do echo "  $(nome_cli "$e")"; done
     fi
     return
   fi
   if [[ -z $id ]] && (( ! cor_json )); then  # "cyberkde efeito" sozinho: os ids, e onde ver o resto
-    echo "$(t "Efeitos (cyberkde efeito <id> [opções]; detalhes: cyberkde efeito --lista --json):" "Effects (cyberkde efeito <id> [options]; details: cyberkde efeito --lista --json):")"
-    printf '  %s\n' "${CYBERKDE_EFEITOS[@]}" | column -c 100 2>/dev/null || printf '  %s\n' "${CYBERKDE_EFEITOS[@]}"
+    echo "$(t "Efeitos (cyberkde efeito <id> [opções]; detalhes: cyberkde efeito --lista --json):" "Effects (cyberkde effect <id> [options]; details: cyberkde effect --list --json):")"
+    for e in "${CYBERKDE_EFEITOS[@]}"; do printf '  %s\n' "$(nome_cli "$e")"; done | column -c 100 2>/dev/null ||
+      for e in "${CYBERKDE_EFEITOS[@]}"; do printf '  %s\n' "$(nome_cli "$e")"; done
     return 0
   fi
   if [[ -z $id || " $disponiveis " != *" $id "* ]] || ! declare -F "efeito_cmd_$id" >/dev/null; then
-    cor_exit 2 "$(t "efeito desconhecido: ${id:-(nenhum)} (há: ${disponiveis// /, })" "unknown effect: ${id:-(none)} (available: ${disponiveis// /, })")"
+    cor_exit 2 "$(t "efeito desconhecido: ${id:-(nenhum)} (há: ${disponiveis// /, })" "unknown effect: ${id:-(none)} (available: $(for e in $disponiveis; do printf '%s, ' "$(nome_cli "$e")"; done | sed 's/, $//'))")"
   fi
   "efeito_cmd_$id" "${resto[@]}"
 }
@@ -1297,7 +1404,7 @@ efeito_cmd_janelas() {
   done
   local uso
   uso=$(t "uso: cyberkde efeito janelas [--abrir id|nenhuma] [--fechar id|nenhuma] [--primeira-vez id|nenhuma] [--duracao-primeira-vez ms] [--duracao-abrir ms] [--duracao-fechar ms] [--intensidade 0-100] [--lista] [--json]" \
-    "usage: cyberkde efeito janelas [--abrir id|nenhuma] [--fechar id|nenhuma] [--primeira-vez id|nenhuma] [--duracao-primeira-vez ms] [--duracao-abrir ms] [--duracao-fechar ms] [--intensidade 0-100] [--lista] [--json]")
+    "usage: cyberkde effect windows [--open id|none] [--close id|none] [--first-time id|none] [--first-time-duration ms] [--open-duration ms] [--close-duration ms] [--intensity 0-100] [--list] [--json]")
   (( bad == 0 )) || cor_exit 2 "$uso"
   if (( lista )); then
     if (( cor_json )); then
@@ -1305,7 +1412,7 @@ efeito_cmd_janelas() {
     else
       local v a f da0 df0
       while IFS=$'\t' read -r v a f da0 df0; do
-        echo "  $v  ($( [[ $a == 1 ]] && t abrir open)$( [[ $a == 1 && $f == 1 ]] && echo ' · ')$( [[ $f == 1 ]] && t fechar close))"
+        echo "  $(nome_cli "$v")  ($( [[ $a == 1 ]] && t abrir open)$( [[ $a == 1 && $f == 1 ]] && echo ' · ')$( [[ $f == 1 ]] && t fechar close))"
       done < <(janelas_catalogo_py tsv)
     fi
     return
@@ -1314,22 +1421,22 @@ efeito_cmd_janelas() {
     cor_exit 2 "$(t "o catálogo de variantes (effects/cyberkde_scan/variantes.json) ainda não existe nesta versão" "the variant catalog (effects/cyberkde_scan/variantes.json) does not exist in this version yet")"
   fi
   if [[ -n $abrir && $abrir != nenhuma ]] && ! janelas_variante "$abrir" abrir; then
-    cor_exit 2 "$(t "variante de abrir desconhecida: $abrir (veja: cyberkde efeito janelas --lista)" "unknown open variant: $abrir (see: cyberkde efeito janelas --lista)")"
+    cor_exit 2 "$(t "variante de abrir desconhecida: $abrir (veja: cyberkde efeito janelas --lista)" "unknown open variant: $abrir (see: cyberkde effect windows --list)")"
   fi
   if [[ -n $pv && $pv != nenhuma && $pv != padrao ]] && ! janelas_variante "$pv" abrir; then
-    cor_exit 2 "$(t "variante de primeira abertura desconhecida: $pv (veja: cyberkde efeito janelas --lista)" "unknown first-open variant: $pv (see: cyberkde efeito janelas --lista)")"
+    cor_exit 2 "$(t "variante de primeira abertura desconhecida: $pv (veja: cyberkde efeito janelas --lista)" "unknown first-open variant: $pv (see: cyberkde effect windows --list)")"
   fi
   if [[ -n $fechar && $fechar != nenhuma ]] && ! janelas_variante "$fechar" fechar; then
-    cor_exit 2 "$(t "variante de fechar desconhecida: $fechar (veja: cyberkde efeito janelas --lista)" "unknown close variant: $fechar (see: cyberkde efeito janelas --lista)")"
+    cor_exit 2 "$(t "variante de fechar desconhecida: $fechar (veja: cyberkde efeito janelas --lista)" "unknown close variant: $fechar (see: cyberkde effect windows --list)")"
   fi
   local x
   for x in "$da" "$df" "$dpv"; do
     if [[ -n $x && $x != padrao ]] && ! { [[ $x =~ ^[0-9]+$ ]] && (( x >= 50 && x <= 2000 )); }; then
-      cor_exit 2 "$(t "duração: de 50 a 2000 ms, ou padrao" "duration: 50 to 2000 ms, or padrao")"
+      cor_exit 2 "$(t "duração: de 50 a 2000 ms, ou padrao" "duration: 50 to 2000 ms, or default")"
     fi
   done
   if [[ -n $int && $int != padrao ]] && ! { [[ $int =~ ^[0-9]+$ ]] && (( int <= 100 )); }; then
-    cor_exit 2 "$(t "intensidade: de 0 a 100, ou padrao" "intensity: 0 to 100, or padrao")"
+    cor_exit 2 "$(t "intensidade: de 0 a 100, ou padrao" "intensity: 0 to 100, or default")"
   fi
   local -a avisos=()
   if [[ -n $abrir$fechar$da$df$int$pv$dpv ]]; then
@@ -1359,7 +1466,7 @@ efeito_cmd_janelas() {
   local estado
   estado=$(efeito_estado_janelas)
   if [[ $(movimento_nivel) == reduzido && -n $abrir$fechar$pv ]]; then
-    avisos+=("$(t "Movimento reduzido: as janelas usam só uma dissolução curta; a escolha volta com cyberkde efeito movimento completo." "Reduced motion: windows use only a short fade; the choice comes back with cyberkde efeito movimento completo.")")
+    avisos+=("$(t "Movimento reduzido: as janelas usam só uma dissolução curta; a escolha volta com cyberkde efeito movimento completo." "Reduced motion: windows use only a short fade; the choice comes back with cyberkde effect motion full.")")
   fi
   if [[ -n $pv && $pv != padrao && $pv != nenhuma && $estado == *'"primeiraVezDisponivel":false'* ]]; then
     avisos+=("$(t "O efeito instalado ainda não distingue a primeira abertura: a escolha foi gravada e vale quando ele passar a ler PrimeiraVezVariante." "The installed effect does not tell the first open apart yet: the choice was saved and applies once it reads PrimeiraVezVariante.")")
@@ -1418,6 +1525,17 @@ phase_icones() {
 }
 
 # Executa como root só quando o destino não é gravável pelo usuário (arquivos do sistema).
+destino_de_sistema_do_tema() {  # destino
+  local lock=/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen
+  [[ $1 != *"/.."* ]] || return 1
+  case $1 in
+    /usr/share/sddm/themes/cyberkde | /usr/share/sddm/themes/cyberkde/* | \
+      /etc/sddm.conf.d/zz-cyberkde.conf | /etc/sddm.conf.d/cyberkde.conf | \
+      "$lock/LockScreen.qml" | "$lock/cyberkde" | "$lock/cyberkde/"*) return 0 ;;
+  esac
+  return 1
+}
+
 as_needed() {  # destino comando...
   local dst=$1 dir
   shift
@@ -1434,10 +1552,14 @@ as_needed() {  # destino comando...
     if [[ -n ${sem_sudo_pendentes:-} ]]; then
       printf '%s\n' "$dst" >>"$sem_sudo_pendentes"
       # O "off" também avisa no stderr; no "cor" o stderr fica só para as linhas PROGRESSO.
-      if [[ ${sem_sudo_avisa:-0} == 1 ]]; then echo "Pendente (sem sudo): $dst" >&2; fi
+      if [[ ${sem_sudo_avisa:-0} == 1 ]]; then echo "$(t "Pendente (sem sudo): $dst" "Pending (no sudo): $dst")" >&2; fi
     else
-      echo "Pendente (sem sudo): $dst" >&2
+      echo "$(t "Pendente (sem sudo): $dst" "Pending (no sudo): $dst")" >&2
     fi
+  elif ! destino_de_sistema_do_tema "$dst"; then
+    # O registro (files.tsv) é gravável pelo usuário: com root, só os caminhos que o próprio tema usa.
+    echo "$(t "Recusado: $dst não é um arquivo de sistema do CyberKDE; nada foi feito com sudo." "Refused: $dst is not a CyberKDE system file; nothing was done with sudo.")" >&2
+    return 1
   else
     # Com SUDO_ASKPASS definido (execução sem terminal), a senha vem do auxiliar.
     # umask 022: um umask restritivo (ex.: 007) deixaria arquivos do sistema ilegíveis para quem roda
@@ -1446,10 +1568,43 @@ as_needed() {  # destino comando...
     if ! sem_travas sudo ${SUDO_ASKPASS:+-A} sh -c 'umask 022; exec "$@"' sh "$@"; then
       # Senha errada ou sudo negado: pendente, para a fase não aparecer como aplicada.
       if [[ -n ${sem_sudo_pendentes:-} ]]; then printf '%s\n' "$dst" >>"$sem_sudo_pendentes"; fi
-      echo "Não gravado (o sudo falhou): $dst" >&2
+      echo "$(t "Não gravado (o sudo falhou): $dst" "Not written (sudo failed): $dst")" >&2
       return 1
     fi
   fi
+}
+
+# SHA-256 que o pacote do pacman instalou para este arquivo (do mtree do banco local), ou nada.
+# Num sistema rolling, uma atualização do Plasma troca os arquivos de /usr que o tema substituiu:
+# o "original" guardado deixa de ser o original.
+pacman_sha_original() {  # arquivo
+  [[ $1 == /usr/* && -f $1 ]] && eh_arch || return 0
+  local dono mtree
+  dono=$(LC_ALL=C pacman -Qo -- "$1" 2>/dev/null | awk '{print $(NF-1) "-" $NF; exit}') || return 0
+  [[ -n $dono ]] || return 0
+  mtree="/var/lib/pacman/local/$dono/mtree"
+  [[ -r $mtree ]] || return 0
+  zcat -- "$mtree" | awk -v f="./${1#/}" '$1 == f { for (i = 2; i <= NF; i++) if ($i ~ /^sha256digest=/) { sub(/^sha256digest=/, "", $i); print $i; exit } }'
+}
+# O arquivo está como o pacote o instalou? (só para arquivos de pacotes do pacman)
+pacman_intacto() {  # arquivo
+  local sha
+  sha=$(pacman_sha_original "$1")
+  [[ -n $sha && $(sha256sum -- "$1" | cut -d' ' -f1) == "$sha" ]]
+}
+
+# "off" de um arquivo de pacote do pacman: 0 = o pacman já pôs o original de volta (atualização com o
+# tema ligado) e a cópia guardada, de uma versão anterior, não deve voltar por cima. Se a cópia não
+# confere com o pacote atual, avisa como obter o original exato.
+pacman_ja_devolveu() {  # destino cópia
+  local sha
+  sha=$(pacman_sha_original "$1")
+  [[ -n $sha ]] || return 1
+  [[ $(sha256sum -- "$1" | cut -d' ' -f1) == "$sha" ]] && return 0
+  if [[ $2 != - && -f $2 && $(sha256sum -- "$2" | cut -d' ' -f1) != "$sha" ]]; then
+    echo "$(t "Aviso: a cópia guardada de $1 é de outra versão do pacote; devolvida mesmo assim. Original exato: sudo pacman -S $(pacman -Qqo -- "$1" 2>/dev/null)" "Note: the saved copy of $1 is from another package version; restored anyway. Exact original: sudo pacman -S $(pacman -Qqo -- "$1" 2>/dev/null)")" >&2
+  fi
+  return 1
 }
 
 # Registra o destino na primeira vez, guardando uma cópia do original (ou "-" se não existia).
@@ -1457,7 +1612,15 @@ remember_path() {  # destino
   local dst=$1 backup=-
   mkdir -p "$state/files"
   touch "$files"
-  if grep -qF -- "$dst"$'\t' "$files"; then fase_marca mais a "$dst"; return; fi
+  if grep -qF -- "$dst"$'\t' "$files"; then
+    # Já registrado, mas o pacman pôs de volta o arquivo do pacote (atualização): ele é o novo original.
+    if pacman_intacto "$dst"; then
+      backup=$(awk -F'\t' -v d="$dst" '$1 == d { print $2; exit }' "$files")
+      if [[ $backup != - && -n $backup ]]; then cp -a -- "$dst" "$backup"; fi
+    fi
+    fase_marca mais a "$dst"
+    return
+  fi
   if [[ -e $dst || -L $dst ]]; then
     backup="$state/files/$(printf '%s' "$dst" | md5sum | cut -c1-16)"
     cp -a -- "$dst" "$backup"
@@ -1509,7 +1672,7 @@ compilar() {  # pasta-de-build
   jobs=$(( limite / 800 ))
   (( jobs < 1 )) && jobs=1
   (( jobs > cpus )) && jobs=$cpus
-  echo "Compilando com $jobs processo(s) (${livre} MB livres; limite de ${limite} MB para a compilação)."
+  echo "$(t "Compilando com $jobs processo(s) (${livre} MB livres; limite de ${limite} MB para a compilação)." "Building with $jobs job(s) (${livre} MB free; ${limite} MB limit for the build).")"
   local -a baixo=(nice -n 19)
   command -v ionice >/dev/null && baixo+=(ionice -c3)
   if [[ -z ${CYBERKDE_CENA:-} ]] && systemd-run --user --scope --quiet -p MemoryMax=64M true 2>/dev/null; then
@@ -1530,24 +1693,40 @@ build_deps() {  # pacote-fonte
   if command -v apt-get >/dev/null; then
     if apt-cache showsrc "$1" 2>/dev/null | grep -q '^Package:'; then
       if apt-get -s build-dep "$1" 2>/dev/null | grep -q '^Inst ' || (( ${#falta[@]} )); then
-        echo "Instalando as dependências de compilação do $1 (pede a senha)…"
+        echo "$(t "Instalando as dependências de compilação do $1 (pede a senha)…" "Installing the build dependencies of $1 (asks for the password)…")"
         sem_travas sudo ${SUDO_ASKPASS:+-A} apt-get build-dep -y "$1" &&
           sem_travas sudo ${SUDO_ASKPASS:+-A} apt-get install -y git ninja-build ||
-          { echo "Não consegui instalar as dependências de compilação do $1." >&2; return 1; }
+          { echo "$(t "Não consegui instalar as dependências de compilação do $1." "Could not install the build dependencies of $1.")" >&2; return 1; }
       fi
       return 0
     fi
     if (( ${#falta[@]} )); then
-      echo "Para compilar o $1 faltam as ferramentas e bibliotecas de compilação. Elas vêm do código-fonte" \
-        "do apt (deb-src), que está desligado. Para ligar (Ubuntu 26.04) e rodar de novo:" >&2
+      echo "$(t "Para compilar o $1 faltam as ferramentas e bibliotecas de compilação. Elas vêm do código-fonte" "Building $1 needs the build tools and libraries. They come from the apt source")" \
+        "$(t "do apt (deb-src), que está desligado. Para ligar (Ubuntu 26.04) e rodar de novo:" "repositories (deb-src), which are off. To turn them on (Ubuntu 26.04) and run again:")" >&2
       echo "  sudo sed -i 's/^Types: deb\$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources && sudo apt update" >&2
       echo "  cyberkde $2-build" >&2
       return 1
     fi
     return 0  # ferramentas presentes: segue; se faltar biblioteca, o cmake diz qual
   fi
+  if eh_arch; then
+    # Arch: os cabeçalhos vêm nos próprios pacotes do KF6/Qt; faltam só as makedepends do PKGBUILD
+    # oficial (extra-cmake-modules, kdoctools) e as ferramentas. O pacman pede confirmação.
+    local -a pk=()
+    pacman -T extra-cmake-modules >/dev/null || pk+=(extra-cmake-modules)
+    pacman -T kdoctools >/dev/null || pk+=(kdoctools)
+    command -v cmake >/dev/null || pk+=(cmake)
+    command -v ninja >/dev/null || pk+=(ninja)
+    command -v git >/dev/null || pk+=(git)
+    command -v g++ >/dev/null || pk+=(gcc)
+    (( ${#pk[@]} )) || return 0
+    echo "$(t "Instalando as dependências de compilação do $1: ${pk[*]} (pede a senha)…" "Installing the build dependencies of $1: ${pk[*]} (asks for the password)…")"
+    sem_travas sudo ${SUDO_ASKPASS:+-A} pacman -S --needed "${pk[@]}" ||
+      { echo "$(t "Não consegui instalar: ${pk[*]}." "Could not install: ${pk[*]}.")" >&2; return 1; }
+    return 0
+  fi
   if (( ${#falta[@]} )); then
-    echo "Para compilar o $1 faltam: ${falta[*]} (e os pacotes de desenvolvimento do KF6/Qt6)." >&2
+    echo "$(t "Para compilar o $1 faltam: ${falta[*]} (e os pacotes de desenvolvimento do KF6/Qt6)." "Building $1 needs: ${falta[*]} (and the KF6/Qt6 development packages).")" >&2
     return 1
   fi
 }
@@ -1569,14 +1748,21 @@ build_patched() {
     git -C "$src" checkout -q -f "$tag"
   fi
   git -C "$src" checkout -q -f -- .
-  git -C "$src" apply "$project/$app/"*.patch
+  # Patch feito para esta versão (<app>/versoes/<versão>.patch), senão o da versão do Ubuntu.
+  local -a patches=("$project/$app/"*.patch)
+  if [[ -f $project/$app/versoes/$version.patch ]]; then patches=("$project/$app/versoes/$version.patch"); fi
+  if ! git -C "$src" apply --check "${patches[@]}" 2>/dev/null; then
+    echo "$(t "O patch do $app não encaixa na versão $version (o $app mudou). Fica o $app do sistema até sair um patch para $version." "The $app patch does not fit version $version ($app changed). The system $app stays until there is a patch for $version.")" >&2
+    exit 1
+  fi
+  git -C "$src" apply "${patches[@]}"
   cmake -S "$src" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
     -DCMAKE_INSTALL_PREFIX="$prefix" -DCMAKE_INSTALL_RPATH="${multiarch:+$prefix/lib/$multiarch;}$prefix/lib64;$prefix/lib" >/dev/null
   compilar "$build"
   rm -rf "$prefix"
   cmake --install "$build" >/dev/null
   echo "$version" >"$prefix/.cyberkde-version"
-  echo "$app $version com patch CyberKDE instalado em $prefix."
+  echo "$(t "$app $version com patch CyberKDE instalado em $prefix." "$app $version with the CyberKDE patch installed in $prefix.")"
 }
 
 # Qual app com patch usar: o pacote (/opt, "cyberkde animados") ou a compilação local (~/.local/opt,
@@ -1625,14 +1811,14 @@ use_patched() {  # app id-do-atalho
   local app=$1 desktop=$2 prefix wrapper="$HOME/.local/bin/$1"
   prefix=$(patched_prefix "$app")
   if [[ -z $prefix || ! -x $prefix/bin/$app ]]; then
-    echo "Opcional: $app animado não instalado (cyberkde animados)." >&2
+    echo "$(t "Opcional: $app animado não instalado (cyberkde animados)." "Optional: animated $app is not installed (cyberkde animated).")" >&2
     exit 1
   fi
   local system_version plugins
   plugins=$(find "$prefix"/lib* -maxdepth 2 -type d -name plugins -print -quit 2>/dev/null || true)
   system_version=$(app_versao_sistema "$app")
   if [[ $(cat "$prefix/.cyberkde-version") != "$system_version" ]]; then
-    echo "Aviso: o $app do sistema foi atualizado para $system_version; rode 'cyberkde $app-build'." >&2
+    echo "$(t "Aviso: o $app do sistema foi atualizado para $system_version; rode 'cyberkde $app-build'." "Note: the system $app was updated to $system_version; run 'cyberkde animated'.")" >&2
   fi
   put_file "$wrapper" <<EOF
 #!/bin/sh
@@ -1686,13 +1872,13 @@ descreve_fase apps "Aplicativos" apps nao "Estilo chanfrado e cores do tema em t
 descreve_fase janelas "Janelas" janelas nao "Moldura das janelas e animação ao abrir e fechar." \
   "Windows" "Window frames and the open and close animation."
 descreve_fase carregamento "Dolphin animado" apps nao "Cascata de itens ao abrir pastas (pede o cyberkde animados)." \
-  "Animated Dolphin" "Items cascade in when a folder opens (needs cyberkde animados)."
+  "Animated Dolphin" "Items cascade in when a folder opens (needs cyberkde animated)."
 descreve_fase icones "Ícones do Dolphin" apps nao "Ícones de pastas e locais do tema, só no Dolphin." \
   "Dolphin icons" "Theme icons for folders and places, in Dolphin only."
 descreve_fase konsole "Konsole" apps nao "Perfil e cores do tema no terminal." \
   "Konsole" "Theme profile and colors in the terminal."
 descreve_fase konsole-anim "Konsole animado" apps nao "Texto e cursor animados no terminal (pede o cyberkde animados)." \
-  "Animated Konsole" "Animated text and cursor in the terminal (needs cyberkde animados)."
+  "Animated Konsole" "Animated text and cursor in the terminal (needs cyberkde animated)."
 
 # A fase pode rodar nesta máquina? (app compilado presente, layout escolhido.) Não diz se está ligada.
 fase_disponivel() {  # fase
@@ -1884,7 +2070,7 @@ konsole_efeito_cmd() {  # id args...
   done
   local uso
   uso=$(t "uso: cyberkde efeito konsole-$id [on|off]$(for n in $nomes; do printf ' [%s …]' "$n"; done) [--json]" \
-    "usage: cyberkde efeito konsole-$id [on|off]$(for n in $nomes; do printf ' [%s …]' "$n"; done) [--json]")
+    "usage: cyberkde effect $(nome_cli "konsole-$id") [on|off]$(for n in $nomes; do printf ' [%s …]' "$(nome_cli "--$n")"; done) [--json]")
   while (( $# )); do
     arg=${1#--}; shift
     case $arg in
@@ -1918,13 +2104,13 @@ konsole_efeito_cmd() {  # id args...
   estado=$(konsole_efeito_estado "$id")
   if [[ $(konsole_pref "$id" ligado false) == true ]]; then
     if [[ $estado == *'"pausadoPeloMovimento":true'* ]]; then
-      avisos+=("$(t "Movimento $(movimento_nivel): este efeito animado fica desligado até cyberkde efeito movimento completo." "Motion $(movimento_nivel): this animated effect stays off until cyberkde efeito movimento completo.")")
+      avisos+=("$(t "Movimento $(movimento_nivel): este efeito animado fica desligado até cyberkde efeito movimento completo." "Motion $(movimento_nivel): this animated effect stays off until cyberkde effect motion full.")")
     fi
     if [[ $estado != *'"disponivel":true'* ]]; then
       if [[ $estado == *'"disponivelAoReligar":true'* ]]; then
         avisos+=("$(t "O Konsole do lançador ainda não tem este efeito; a compilação mais nova tem. Rode cyberkde on konsole-anim e abra um Konsole novo." "The launcher's Konsole does not have this effect yet; the newer build does. Run cyberkde on konsole-anim and open a new Konsole.")")
       else
-        avisos+=("$(t "O Konsole animado instalado é anterior a estes efeitos: valem depois de atualizar (cyberkde animados com o pacote novo, ou cyberkde konsole-build)." "The installed animated Konsole predates these effects: they apply after updating it (cyberkde animados with the new package, or cyberkde konsole-build).")")
+        avisos+=("$(t "O Konsole animado instalado é anterior a estes efeitos: valem depois de atualizar (cyberkde animados com o pacote novo, ou cyberkde konsole-build)." "The installed animated Konsole predates these effects: they apply after updating it (cyberkde animated with the new package, or cyberkde konsole-build).")")
       fi
     fi
     if [[ $id == erro && $estado == *'"integracaoShell":false'* ]]; then
@@ -2130,7 +2316,7 @@ efeito_cmd_cursor() {
       *) variante=invalida ;;
     esac
   done
-  [[ $variante != invalida ]] || cor_exit 2 "$(t "uso: cyberkde efeito cursor [padrao|neon|minimo|mira] [--json]" "usage: cyberkde efeito cursor [padrao|neon|minimo|mira] [--json]")"
+  [[ $variante != invalida ]] || cor_exit 2 "$(t "uso: cyberkde efeito cursor [padrao|neon|minimo|mira] [--json]" "usage: cyberkde effect cursor [default|neon|minimal|crosshair] [--json]")"
   local -a avisos=()
   if [[ -n $variante ]]; then
     take_lock || cor_exit 3 "$(t "ocupado: outra execução do cyberkde está em andamento" "busy: another cyberkde run is in progress")"
@@ -2223,29 +2409,29 @@ applekde_desligar() {
   applekde_ligado || return 0
   local bin rc=0 e
   if ! bin=$(applekde_bin); then
-    cor_exit 1 "o AppleKDE está ligado (registro em $applekde_state), mas o comando 'applekde' não foi encontrado: desligue-o com 'applekde off' (ou reinstale o AppleKDE) e rode 'cyberkde on' de novo. Nada foi aplicado."
+    cor_exit 1 "$(t "o AppleKDE está ligado (registro em $applekde_state), mas o comando 'applekde' não foi encontrado: desligue-o com 'applekde off' (ou reinstale o AppleKDE) e rode 'cyberkde on' de novo. Nada foi aplicado." "AppleKDE is on (record in $applekde_state), but the 'applekde' command was not found: turn it off with 'applekde off' (or reinstall AppleKDE) and run 'cyberkde on' again. Nothing was applied.")"
   fi
   if applekde_exige_root && [[ ! -t 0 && -z ${SUDO_ASKPASS:-} ]]; then
-    cor_exit 1 "o AppleKDE está ligado e desligá-lo pede sudo (arquivos de sistema), mas não há terminal: rode 'applekde off' num terminal e depois 'cyberkde on'. Nada foi aplicado."
+    cor_exit 1 "$(t "o AppleKDE está ligado e desligá-lo pede sudo (arquivos de sistema), mas não há terminal: rode 'applekde off' num terminal e depois 'cyberkde on'. Nada foi aplicado." "AppleKDE is on and turning it off needs sudo (system files), but there is no terminal: run 'applekde off' in a terminal, then 'cyberkde on'. Nothing was applied.")"
   fi
-  echo "AppleKDE ligado: rodando 'applekde off' antes (os dois temas não se misturam)…" >&2
+  echo "$(t "AppleKDE ligado: rodando 'applekde off' antes (os dois temas não se misturam)…" "AppleKDE is on: running 'applekde off' first (the two themes never mix)…")" >&2
   # Nunca repassar o modo sem sudo: o off deles deixaria arquivos de sistema para trás (código 4).
   sem_travas env -u APPLEKDE_SEM_SUDO CYBERKDE_ON_EM_CURSO=1 "$bin" off >&2 || rc=$?
   case $rc in
     0) ;;
-    3) cor_exit 3 "o AppleKDE está ocupado (outra execução do applekde); tente de novo daqui a pouco. Nada foi aplicado." ;;
-    4) cor_exit 1 "o 'applekde off' devolveu tudo menos arquivos de sistema (precisa de root): rode 'applekde off' num terminal e depois 'cyberkde on'. Nada foi aplicado." ;;
-    *) cor_exit 1 "o 'applekde off' falhou (código $rc): veja as mensagens acima, rode 'applekde off' de novo e depois 'cyberkde on'. Nada foi aplicado." ;;
+    3) cor_exit 3 "$(t "o AppleKDE está ocupado (outra execução do applekde); tente de novo daqui a pouco. Nada foi aplicado." "AppleKDE is busy (another applekde run); try again in a moment. Nothing was applied.")" ;;
+    4) cor_exit 1 "$(t "o 'applekde off' devolveu tudo menos arquivos de sistema (precisa de root): rode 'applekde off' num terminal e depois 'cyberkde on'. Nada foi aplicado." "'applekde off' restored everything except system files (needs root): run 'applekde off' in a terminal, then 'cyberkde on'. Nothing was applied.")" ;;
+    *) cor_exit 1 "$(t "o 'applekde off' falhou (código $rc): veja as mensagens acima, rode 'applekde off' de novo e depois 'cyberkde on'. Nada foi aplicado." "'applekde off' failed (code $rc): see the messages above, run 'applekde off' again, then 'cyberkde on'. Nothing was applied.")" ;;
   esac
   # Confirmação: o próprio AppleKDE diz que desligou E o registro principal dele sumiu.
   if applekde_ligado || [[ -s $applekde_state/ledger.tsv || -s $applekde_state/files.tsv ]]; then
-    cor_exit 1 "o 'applekde off' terminou, mas o AppleKDE continua ligado (registro em $applekde_state): rode 'applekde off' de novo e depois 'cyberkde on'. Nada foi aplicado."
+    cor_exit 1 "$(t "o 'applekde off' terminou, mas o AppleKDE continua ligado (registro em $applekde_state): rode 'applekde off' de novo e depois 'cyberkde on'. Nada foi aplicado." "'applekde off' finished, but AppleKDE is still on (record in $applekde_state): run 'applekde off' again, then 'cyberkde on'. Nothing was applied.")"
   fi
   # O reconfigure do KWin não descarrega efeito cuja chave sumiu (rede de segurança).
   for e in applekde_janelas applekde_popups applekde_glass; do
     qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect "$e" >/dev/null 2>&1 || true
   done
-  echo "AppleKDE desligado." >&2
+  echo "$(t "AppleKDE desligado." "AppleKDE turned off.")" >&2
 }
 
 cmd_on() {
@@ -2261,16 +2447,16 @@ cmd_on() {
   phase=${phase:-tudo}
   # --json: a saída padrão fica só com a linha JSON; as mensagens vão para a saída de erro.
   if (( cor_json )); then exec 3>&1 1>&2; else exec 3>&1; fi
-  (( bad == 0 )) || cor_exit 2 "uso: cyberkde on [fase] [--sem-sudo] [--json] [--progresso]"
+  (( bad == 0 )) || cor_exit 2 "$(t "uso: cyberkde on [fase] [--sem-sudo] [--json] [--progresso]" "usage: cyberkde on [part] [--no-sudo] [--json] [--progress]")"
   if [[ $phase != tudo ]] && ! declare -F "phase_$phase" >/dev/null; then
-    cor_exit 2 "fase desconhecida: $phase"
+    cor_exit 2 "$(t "fase desconhecida: $phase" "unknown part: $phase")"
   fi
-  take_lock || cor_exit 3 "ocupado: outra execução do cyberkde está em andamento"
+  take_lock || cor_exit 3 "$(t "ocupado: outra execução do cyberkde está em andamento" "busy: another cyberkde run is in progress")"
   applekde_desligar  # exclusão mútua: nada é gravado com o AppleKDE ligado
   set -E
-  trap 'cor_exit 1 "falha ao ligar o tema (detalhes na saída de erro)"' ERR
+  trap 'cor_exit 1 "$(t "falha ao ligar o tema (detalhes na saída de erro)" "failed to turn the theme on (details on standard error)")"' ERR
   trap cor_interrupted TERM INT HUP
-  kvantum_ok || echo "Aviso: Kvantum não instalado; as formas chanfradas só aparecem depois de instalar o Kvantum para Qt 6 (no Ubuntu/Debian: qt-style-kvantum)." >&2
+  kvantum_ok || echo "$(t "Aviso: Kvantum não instalado; as formas chanfradas só aparecem depois de instalar o Kvantum para Qt 6 (no Ubuntu/Debian: qt-style-kvantum)." "Note: Kvantum is not installed; the chamfered shapes only appear after installing Kvantum for Qt 6 (Arch: kvantum; Ubuntu/Debian: qt-style-kvantum).")" >&2
 
   local -a fases=() aplicadas=() puladas=() pendentes=()
   if [[ $phase == tudo ]]; then
@@ -2299,7 +2485,7 @@ cmd_on() {
     if ("phase_$p"); then
       if [[ -s $sem_sudo_pendentes ]]; then
         pendentes+=("$p")
-        echo "  … $p (pendente: precisa de sudo)"
+        echo "$(t "  … $p (pendente: precisa de sudo)" "  … $p (pending: needs sudo)")"
       else
         aplicadas+=("$p")
         echo "  ✓ $p"
@@ -2326,8 +2512,8 @@ cmd_on() {
     if restart_plasmashell; then
       reiniciado=true
     else
-      echo "Aviso: não consegui reiniciar o plasmashell; o painel e a área de trabalho podem" \
-        "continuar com os ícones antigos." >&2
+      echo "$(t "Aviso: não consegui reiniciar o plasmashell; o painel e a área de trabalho podem" "Note: could not restart plasmashell; the panel and desktop may")" \
+        "$(t "continuar com os ícones antigos." "keep the old icons.")" >&2
     fi
   fi
   progress fim
@@ -2337,14 +2523,14 @@ cmd_on() {
   if (( ${#pendentes[@]} )); then
     local retomar="cyberkde on"
     if [[ $phase != tudo ]]; then retomar+=" $phase"; fi
-    echo "Aplicado, menos: ${pendentes[*]} (precisa de sudo). Para completar, rode no terminal:" \
+    echo "$(t "Aplicado, menos: ${pendentes[*]} (precisa de sudo). Para completar, rode no terminal:" "Applied, except: ${pendentes[*]} (needs sudo). To finish, run in a terminal:")" \
       "$retomar"
   elif [[ $phase == tudo ]]; then
-    echo "CyberKDE ligado. Reabra os aplicativos para ver tudo; 'cyberkde off' volta ao padrão."
+    echo "$(t "CyberKDE ligado. Reabra os aplicativos para ver tudo; 'cyberkde off' volta ao padrão." "CyberKDE is on. Reopen your apps to see everything; 'cyberkde off' puts everything back.")"
   elif [[ $phase == dolphin ]]; then
-    echo "Fase 'dolphin' aplicada. Feche e reabra o Dolphin para ver o resultado."
+    echo "$(t "Fase 'dolphin' aplicada. Feche e reabra o Dolphin para ver o resultado." "Part 'dolphin' applied. Close and reopen Dolphin to see it.")"
   else
-    echo "Fase '$phase' aplicada; já vale para as janelas abertas e as próximas."
+    echo "$(t "Fase '$phase' aplicada; já vale para as janelas abertas e as próximas." "Part '$phase' applied; it already applies to open and new windows.")"
   fi
   if (( cor_json )); then
     local -a avisos=()
@@ -2376,15 +2562,15 @@ encerra_compilados() {  # [dolphin|konsole]: só o desse app (o "off <fase>"); s
       konsole:"$HOME/.local/opt/cyberkde-dolphin/"* | konsole:/opt/cyberkde-dolphin/*) ;;
       dolphin:"$HOME/.local/opt/cyberkde-konsole/"* | dolphin:/opt/cyberkde-konsole/*) ;;
       *:"$HOME/.local/opt/cyberkde-dolphin/"* | *:/opt/cyberkde-dolphin/*)
-        echo "  encerrando o Dolphin do CyberKDE que continuava rodando (pid $pid)."
+        echo "$(t "  encerrando o Dolphin do CyberKDE que continuava rodando (pid $pid)." "  closing the CyberKDE Dolphin that was still running (pid $pid).")"
         kill -TERM "$pid" 2>/dev/null || true
         ;;
       *:"$HOME/.local/opt/cyberkde-konsole/"* | *:/opt/cyberkde-konsole/*) konsole=$(( konsole + 1 )) ;;
     esac
   done
   if (( konsole )); then
-    echo "Ainda há $konsole Konsole do CyberKDE aberto; feche essas janelas quando puder." \
-      "Não encerro terminal sozinho: mataria o que estiver rodando dentro." >&2
+    echo "$(t "Ainda há $konsole Konsole do CyberKDE aberto; feche essas janelas quando puder." "$konsole CyberKDE Konsole window(s) still open; close them when you can.")" \
+      "$(t "Não encerro terminal sozinho: mataria o que estiver rodando dentro." "Terminals are never closed automatically: that would kill whatever runs inside.")" >&2
   fi
 }
 
@@ -2394,7 +2580,7 @@ cmd_off() {
   # nada registrado para desfazer (um "off" repetido, ou o processo sobrevivendo ao off anterior).
   encerra_compilados
   if [[ ! -s $ledger && ! -s $files ]] && ! modulo_registro; then
-    echo "Nada aplicado; o sistema já está no padrão."
+    echo "$(t "Nada aplicado; o sistema já está no padrão." "Nothing applied; the system is already at its original state.")"
     return
   fi
   local file group key orig dst backup falhou=0 pendentes hook
@@ -2425,6 +2611,7 @@ cmd_off() {
       # --sem-sudo, porque o remember_path registra ANTES de escrever (a ordem inversa seria pior:
       # uma interrupção deixaria arquivo gravado e fora do registro, ou seja, sem volta).
       if [[ ! -e $dst && ! -L $dst && $backup == - ]]; then continue; fi
+      pacman_ja_devolveu "$dst" "$backup" && continue
       as_needed "$dst" rm -rf -- "$dst"
       if [[ $backup != - ]]; then
         as_needed "$dst" cp -r --preserve=mode,timestamps -- "$backup" "$dst"
@@ -2435,8 +2622,8 @@ cmd_off() {
       # Guarda só o que NÃO foi devolvido (e as cópias), para um "off" com sudo terminar o serviço.
       awk -F'\t' 'NR == FNR { p[$0] = 1; next } ($1 in p)' "$pendentes" "$files" >"$files.novo"
       mv -f "$files.novo" "$files"
-      echo "Não devolvi $(wc -l <"$files") arquivo(s) de sistema (sem sudo); o registro foi mantido" \
-        "em $files. Rode 'cyberkde off' num terminal, com sudo, para terminar." >&2
+      echo "$(t "Não devolvi $(wc -l <"$files") arquivo(s) de sistema (sem sudo); o registro foi mantido" "$(wc -l <"$files") system file(s) not restored (no sudo); the record was kept")" \
+        "$(t "em $files. Rode 'cyberkde off' num terminal, com sudo, para terminar." "in $files. Run 'cyberkde off' in a terminal, with sudo, to finish.")" >&2
       falhou=1 off_pendente_sudo=1
     else
       rm -rf "$files" "$state/files"
@@ -2455,13 +2642,13 @@ cmd_off() {
   refresh_plasmashell
   painel_icone_atualizar  # tema desligado: o ícone neutro
   if (( falhou )); then
-    echo "Reversão INCOMPLETA: veja as pendências acima." >&2
+    echo "$(t "Reversão INCOMPLETA: veja as pendências acima." "Restore INCOMPLETE: see the pending items above.")" >&2
     # Pelo "off --json" quem decide o código é o cmd_off_tudo_json (pelas marcas acima): sem isto, o
     # "return 1" com set -e encerraria o script antes da linha JSON.
     if (( off_responde_json )); then return 0; fi
     return 1
   fi
-  echo "Valores originais restaurados. Reabra os aplicativos afetados."
+  echo "$(t "Valores originais restaurados. Reabra os aplicativos afetados." "Original values restored. Reopen the affected apps.")"
 }
 
 # Texto entre aspas no JSON (caminhos de arquivo podem ter aspas ou barras invertidas).
@@ -2480,7 +2667,7 @@ cmd_fases() {
   for arg in "$@"; do
     case $arg in
       --json) json=1 ;;
-      *) echo "uso: cyberkde fases [--json]" >&2; exit 2 ;;
+      *) echo "$(t "uso: cyberkde fases [--json]" "usage: cyberkde phases [--json]")" >&2; exit 2 ;;
     esac
   done
   local -A ligada=()
@@ -2504,17 +2691,17 @@ cmd_fases() {
     printf '{"fases":[%s],"temaLigado":%s,"registroPorFase":%s}\n' "$lista" "$ligado" "$por_fase"
     return
   fi
-  echo "Fases, na ordem do 'cyberkde on' (● ligada, ○ desligada):"
+  echo "$(t "Fases, na ordem do 'cyberkde on' (● ligada, ○ desligada):" "Parts, in 'cyberkde on' order (● on, ○ off):")"
   for p in "${CYBERKDE_PHASES[@]}" "${CYBERKDE_FASES_OPCIONAIS[@]}"; do
     local extra=""
     if [[ ${CYBERKDE_FASE_SUDO[$p]:-nao} == sim ]]; then extra+=" [sudo]"; fi
-    if [[ " ${CYBERKDE_PHASES[*]} " != *" $p "* ]]; then extra+=" [opcional]"; fi
-    if ! fase_disponivel "$p"; then extra+=" [indisponível aqui]"; fi
-    printf '  %s %-17s %s%s\n' "$([[ -n ${ligada[$p]:-} ]] && echo '●' || echo '○')" "$p" \
-      "${CYBERKDE_FASE_DESC[$p]:-}" "$extra"
+    if [[ " ${CYBERKDE_PHASES[*]} " != *" $p "* ]]; then extra+=" [$(t opcional optional)]"; fi
+    if ! fase_disponivel "$p"; then extra+=" [$(t "indisponível aqui" "not available here")]"; fi
+    printf '  %s %-17s %s%s\n' "$([[ -n ${ligada[$p]:-} ]] && echo '●' || echo '○')" "$(nome_cli "$p")" \
+      "$(t "${CYBERKDE_FASE_DESC[$p]:-}" "${CYBERKDE_FASE_DESC_EN[$p]:-${CYBERKDE_FASE_DESC[$p]:-}}")" "$extra"
   done
   if [[ $por_fase == false ]]; then
-    echo "O registro é de uma versão anterior do tema: rode 'cyberkde on' uma vez para ele valer por fase."
+    echo "$(t "O registro é de uma versão anterior do tema: rode 'cyberkde on' uma vez para ele valer por fase." "The record is from an older theme version: run 'cyberkde on' once so it works per part.")"
   fi
 }
 
@@ -2543,7 +2730,7 @@ avisos_off_de() {  # fases pendentes... -> uma frase por linha (mesma regra do a
 # arquivo de sistema para trás. Códigos: 0 · 1 falha · 3 ocupado · 4 pendente de sudo · 5 interrompido.
 cmd_off_tudo_json() {
   if (( cor_json )); then exec 3>&1 1>&2; else exec 3>&1; fi
-  take_lock || cor_exit 3 "ocupado: outra execução do cyberkde está em andamento"
+  take_lock || cor_exit 3 "$(t "ocupado: outra execução do cyberkde está em andamento" "busy: another cyberkde run is in progress")"
   local -a antes=() aplicadas=() pendentes=() avisos=()
   local p ligado=false
   mapfile -t antes < <(fases_ligadas)
@@ -2556,7 +2743,7 @@ cmd_off_tudo_json() {
     done < <(awk -F'\t' '$1 == "a"' "$fases_reg")
   fi
   set -E
-  trap 'cor_exit 1 "falha ao desligar o tema (detalhes na saída de erro)"' ERR
+  trap 'cor_exit 1 "$(t "falha ao desligar o tema (detalhes na saída de erro)" "failed to turn the theme off (details on standard error)")"' ERR
   trap cor_interrupted TERM INT HUP
   progress_total=6  # módulos, chaves, arquivos, desfazer, kwin, painel
   progress inicio
@@ -2565,7 +2752,7 @@ cmd_off_tudo_json() {
   progress fim
   trap - ERR TERM INT HUP
   if (( off_falha_modulo )); then
-    cor_exit 1 "o tema foi desligado pela metade (veja as mensagens acima); rode 'cyberkde off' de novo"
+    cor_exit 1 "$(t "o tema foi desligado pela metade (veja as mensagens acima); rode 'cyberkde off' de novo" "the theme was only partly turned off (see the messages above); run 'cyberkde off' again")"
   fi
   if (( off_pendente_sudo )) && [[ -s $files ]]; then
     local -A vistas=()
@@ -2605,20 +2792,20 @@ cmd_off_fase() {
     return
   fi
   if (( cor_json )); then exec 3>&1 1>&2; else exec 3>&1; fi
-  (( bad == 0 )) || cor_exit 2 "uso: cyberkde off [fase] [--sem-sudo] [--json] [--progresso]"
-  declare -F "phase_$phase" >/dev/null || cor_exit 2 "fase desconhecida: $phase"
-  take_lock || cor_exit 3 "ocupado: outra execução do cyberkde está em andamento"
+  (( bad == 0 )) || cor_exit 2 "$(t "uso: cyberkde off [fase] [--sem-sudo] [--json] [--progresso]" "usage: cyberkde off [part] [--no-sudo] [--json] [--progress]")"
+  declare -F "phase_$phase" >/dev/null || cor_exit 2 "$(t "fase desconhecida: $phase" "unknown part: $phase")"
+  take_lock || cor_exit 3 "$(t "ocupado: outra execução do cyberkde está em andamento" "busy: another cyberkde run is in progress")"
   if tema_ligado && ! registro_por_fase; then
-    cor_exit 1 "o registro do tema é de uma versão anterior e não diz de qual fase veio cada chave. Rode 'cyberkde on' uma vez (ele anota as fases; se ainda assim não der, 'cyberkde off' e 'cyberkde on') e depois 'cyberkde off $phase'. Nada foi desligado."
+    cor_exit 1 "$(t "o registro do tema é de uma versão anterior e não diz de qual fase veio cada chave. Rode 'cyberkde on' uma vez (ele anota as fases; se ainda assim não der, 'cyberkde off' e 'cyberkde on') e depois 'cyberkde off $phase'. Nada foi desligado." "the theme record comes from an older version and does not say which part each key belongs to. Run 'cyberkde on' once (if that is not enough, 'cyberkde off' and 'cyberkde on'), then 'cyberkde off $phase'. Nothing was turned off.")"
   fi
   local -a aplicadas=() puladas=() pendentes=() avisos=()
   local reiniciado=false mantidas=0 painel=false kwin=false
   if ! fase_ligada "$phase"; then
-    echo "A fase '$phase' já está desligada."
+    echo "$(t "A fase '$phase' já está desligada." "Part '$phase' is already off.")"
     puladas=("$phase")
   else
     set -E
-    trap 'cor_exit 1 "falha ao desligar a fase (detalhes na saída de erro)"' ERR
+    trap 'cor_exit 1 "$(t "falha ao desligar a fase (detalhes na saída de erro)" "failed to turn the part off (details on standard error)")"' ERR
     trap cor_interrupted TERM INT HUP
     # A barra e a dock regravam o appletsrc com o plasmashell parado (off_barra-e-dock).
     if phase_needs_plasmashell "$phase" || [[ $phase == barra-e-dock ]]; then painel=true; fi
@@ -2673,6 +2860,7 @@ cmd_off_fase() {
     while IFS=$'\t' read -r dst backup; do
       # Mesma regra do "off": destino que nunca chegou ao disco e não tinha original fica como está.
       if [[ ! -e $dst && ! -L $dst && $backup == - ]]; then continue; fi
+      pacman_ja_devolveu "$dst" "$backup" && continue
       as_needed "$dst" rm -rf -- "$dst" || true
       if [[ $backup != - ]]; then
         as_needed "$dst" cp -r --preserve=mode,timestamps -- "$backup" "$dst" || true
@@ -2720,7 +2908,7 @@ cmd_off_fase() {
     if [[ $painel == true ]]; then
       progress painel
       if restart_plasmashell; then reiniciado=true; else
-        echo "Aviso: não consegui reiniciar o plasmashell; o painel pode continuar com a aparência de antes." >&2
+        echo "$(t "Aviso: não consegui reiniciar o plasmashell; o painel pode continuar com a aparência de antes." "Note: could not restart plasmashell; the panel may keep its previous look.")" >&2
       fi
       # Os painéis devolvidos pelo off_barra-e-dock são os de antes do tema, com o papel de parede de
       # antes. Com a fase dos papéis de parede ainda ligada, ele volta ao do tema.
@@ -2728,22 +2916,22 @@ cmd_off_fase() {
         local i
         for i in {1..50}; do qdbus6 org.kde.plasmashell /PlasmaShell >/dev/null 2>&1 && break; sleep 0.2; done
         (fase_atual=papeis-de-parede; phase_papeis-de-parede) ||
-          echo "Aviso: o papel de parede do tema não voltou; rode 'cyberkde on papeis-de-parede'." >&2
+          echo "$(t "Aviso: o papel de parede do tema não voltou; rode 'cyberkde on papeis-de-parede'." "Note: the theme wallpaper did not come back; run 'cyberkde on wallpapers'.")" >&2
       fi
     fi
     progress fim
     trap - ERR TERM INT HUP
     if (( hook_falhou )); then
-      cor_exit 1 "a fase '$phase' foi desligada pela metade (veja as mensagens acima); rode 'cyberkde off $phase' de novo"
+      cor_exit 1 "$(t "a fase '$phase' foi desligada pela metade (veja as mensagens acima); rode 'cyberkde off $phase' de novo" "part '$phase' was only partly turned off (see the messages above); run 'cyberkde off $phase' again")"
     fi
     if (( ${#pendentes[@]} )); then
-      echo "Desligada, menos o que precisa de sudo. Para completar, rode no terminal: cyberkde off $phase"
+      echo "$(t "Desligada, menos o que precisa de sudo. Para completar, rode no terminal: cyberkde off $phase" "Turned off, except what needs sudo. To finish, run in a terminal: cyberkde off $phase")"
     else
       aplicadas=("$phase")
       if (( mantidas )); then
-        echo "Fase '$phase' desligada; $mantidas chave(s) continuam com o tema porque outra fase ligada também as usa."
+        echo "$(t "Fase '$phase' desligada; $mantidas chave(s) continuam com o tema porque outra fase ligada também as usa." "Part '$phase' turned off; $mantidas key(s) keep the theme value because another part that is on uses them.")"
       else
-        echo "Fase '$phase' desligada. Reabra os aplicativos afetados."
+        echo "$(t "Fase '$phase' desligada. Reabra os aplicativos afetados." "Part '$phase' turned off. Reopen the affected apps.")"
       fi
     fi
   fi
@@ -2771,7 +2959,7 @@ corp_file="$config/cyberkde/corp"
 paleta_file="$config/cyberkde/paleta"  # secundária, alerta e fundo da corporação (lido pelo cyberlib)
 corp_logos_usuario="$config/cyberkde/corporacoes"
 corp_ids=()
-declare -A corp_nomes=([personalizada]=Personalizada) corp_lemas=() corp_destaques=() corp_secundarias=() \
+declare -A corp_nomes=([personalizada]=Personalizada) corp_lemas=() corp_lemas_en=() corp_destaques=() corp_secundarias=() \
   corp_alertas=() corp_fundos=() corp_icones_tema=() corp_logos_tema=() corp_extras=()
 corp_carregado=0
 
@@ -2780,14 +2968,15 @@ corp_carregado=0
 corp_carregar() {
   (( corp_carregado )) && return 0
   corp_carregado=1
-  local id nome lema d s a f icone logo extras
-  while IFS=$'\t' read -r id nome lema d s a f icone logo extras; do
+  local id nome lema d s a f icone logo lema_en extras
+  while IFS=$'\t' read -r id nome lema d s a f icone logo lema_en extras; do
     corp_ids+=("$id")
     corp_nomes[$id]=$nome
     corp_lemas[$id]=${lema#-}
+    corp_lemas_en[$id]=${lema_en#-}
     corp_destaques[$id]=$d corp_secundarias[$id]=$s corp_alertas[$id]=$a corp_fundos[$id]=$f
     corp_icones_tema[$id]=${icone#-} corp_logos_tema[$id]=${logo#-} corp_extras[$id]=${extras#-}
-  done < <(python3 - "$corp_tokens" <<'PY' || echo "Aviso: não consegui ler $corp_tokens; sem corporações." >&2
+  done < <(python3 - "$corp_tokens" <<'PY' || echo "$(t "Aviso: não consegui ler $corp_tokens; sem corporações." "Note: could not read $corp_tokens; no corporations.")" >&2
 import json, sys
 dados = json.load(open(sys.argv[1], encoding="utf-8"))
 CONHECIDOS = {"id", "nome", "lema", "destaque", "secundaria", "alerta", "fundo", "icone", "logo"}
@@ -2799,14 +2988,21 @@ for c in dados["corporacoes"]:
     extras = ",".join(json.dumps(k) + ":" + json.dumps(v, ensure_ascii=False) for k, v in c.items()
                       if k not in CONHECIDOS and not k.startswith("_"))
     print("\t".join([campo("id"), campo("nome"), campo("lema"), cor("destaque"), cor("secundaria"),
-                     cor("alerta"), cor("fundo"), campo("icone"), campo("logo"), extras or "-"]))
+                     cor("alerta"), cor("fundo"), campo("icone"), campo("logo"), campo("lema_en"), extras or "-"]))
 PY
   )
 }
 corp_existe() { corp_carregar; [[ -n ${1:-} && -n ${corp_destaques[$1]:-} ]]; }
 
 corp_gravar() { mkdir -p -- "$(dirname -- "$corp_file")"; printf '%s\n' "$1" >"$corp_file"; }
-corp_nome() { corp_carregar; printf '%s' "${corp_nomes[$1]:-$1}"; }
+corp_nome() {
+  corp_carregar
+  case $1 in
+    nenhuma) t "${corp_nomes[$1]:-Nenhuma}" None ;;
+    personalizada) t Personalizada Custom ;;
+    *) printf '%s' "${corp_nomes[$1]:-$1}" ;;
+  esac
+}
 
 # Paleta da corporação para os geradores. "nenhuma", "personalizada" ou desconhecida: sem arquivo, e
 # a secundária, o alerta e o fundo são os do tema.
@@ -2861,7 +3057,7 @@ corp_logo_do_usuario() { [[ $1 == "$corp_logos_usuario/"* ]]; }
 corp_logo_texto() {  # id -> " (logo: ...)" para as mensagens
   local logo
   logo=$(corp_logo "$1")
-  if [[ -n $logo ]]; then printf ' (logo: %s)' "$logo"; elif [[ $1 != nenhuma ]] && corp_existe "$1"; then printf ' (sem logo: fica o do tema)'; fi
+  if [[ -n $logo ]]; then printf ' (logo: %s)' "$logo"; elif [[ $1 != nenhuma ]] && corp_existe "$1"; then printf ' (%s)' "$(t "sem logo: fica o do tema" "no logo: the theme's stays")"; fi
 }
 
 # A paleta que os geradores aplicam agora (já clareada para ler e com o fundo tingido), num objeto
@@ -2903,7 +3099,7 @@ cmd_corp() {
   local nomes_ids
   nomes_ids=$(IFS='|'; echo "${corp_ids[*]}")
   (( bad == 0 && ! (lista && ${#id}) )) ||
-    cor_exit 2 "uso: cyberkde corp [${nomes_ids}|--lista] [--sem-sudo] [--json]"
+    cor_exit 2 "$(t "uso: cyberkde corp [${nomes_ids}|--lista] [--sem-sudo] [--json]" "usage: cyberkde corp [${nomes_ids}|--list] [--no-sudo] [--json]")"
   local atual c logo
   atual=$(corp_atual)
   if (( lista )); then
@@ -2922,11 +3118,11 @@ cmd_corp() {
         if [[ -n ${corp_extras[$c]:-} ]]; then itens="${itens%\}},${corp_extras[$c]}}"; fi
       else
         printf '  %s %-12s %s  %s%s\n' "$([[ $c == "$atual" ]] && echo '●' || echo '○')" "$c" \
-          "${corp_destaques[$c]}" "${corp_lemas[$c]}" "$(corp_logo_texto "$c")"
+          "${corp_destaques[$c]}" "$(t "${corp_lemas[$c]}" "${corp_lemas_en[$c]:-${corp_lemas[$c]}}")" "$(corp_logo_texto "$c")"
       fi
     done
     if (( cor_json )); then printf '{"corps":[%s],"atual":"%s"}\n' "$itens" "$atual" >&3; fi
-    if (( ! cor_json )) && [[ $atual == personalizada ]]; then echo "  Em uso: cor personalizada ($(accent_color))."; fi
+    if (( ! cor_json )) && [[ $atual == personalizada ]]; then echo "$(t "  Em uso: cor personalizada ($(accent_color))." "  In use: custom color ($(accent_color)).")"; fi
     return
   fi
   if [[ -z $id ]]; then  # só leitura
@@ -2939,13 +3135,13 @@ cmd_corp() {
         "$(json_caminho "$logo")" "$(corp_logo_do_usuario "$logo" && echo true || echo false)" \
         "$ligado" "$(paleta_json)" "$(json_caminho "$(corp_logo_largo "$atual")")" >&3
     else
-      echo "Corporação: $(corp_nome "$atual")$(corp_logo_texto "$atual") · cor $(accent_color)"
+      echo "$(t "Corporação: $(corp_nome "$atual")$(corp_logo_texto "$atual") · cor $(accent_color)" "Corporation: $(corp_nome "$atual")$(corp_logo_texto "$atual") · color $(accent_color)")"
     fi
     return
   fi
-  corp_existe "$id" || cor_exit 2 "corporação desconhecida: $id (use ${nomes_ids//|/, })"
+  corp_existe "$id" || cor_exit 2 "$(t "corporação desconhecida: $id (use ${nomes_ids//|/, })" "unknown corporation: $id (use ${nomes_ids//|/, })")"
   cor_corp=$id
-  if (( ! cor_json )); then echo "Corporação: $(corp_nome "$id")$(corp_logo_texto "$id")"; fi
+  if (( ! cor_json )); then echo "$(t "Corporação: $(corp_nome "$id")$(corp_logo_texto "$id")" "Corporation: $(corp_nome "$id")$(corp_logo_texto "$id")")"; fi
   # "nenhuma" é a cor padrão (sem arquivo de cor), não o vermelho gravado como escolha.
   if [[ $id == nenhuma ]]; then cmd_cor padrao "${repassa[@]}"; else cmd_cor "${corp_destaques[$id]}" "${repassa[@]}"; fi
 }
@@ -2956,6 +3152,14 @@ cmd_corp() {
 # módulo). Imprime os pacotes que faltam, um por linha; nada = tudo certo. O tema funciona sem o
 # painel: quem chama decide se é aviso.
 painel_deps_faltando() {
+  if eh_arch; then
+    # Arch: o PyQt6 inteiro é python-pyqt6, e todos esses módulos QML vêm no qt6-declarative.
+    painel_deps_debian | sed 's/^python3-pyqt6.*/python-pyqt6/; s/^qml6-module-.*/qt6-declarative/' | sort -u
+  else
+    painel_deps_debian
+  fi
+}
+painel_deps_debian() {
   local mod pkg qml
   for mod in QtCore:python3-pyqt6 QtGui:python3-pyqt6 QtQml:python3-pyqt6.qtqml QtQuick:python3-pyqt6.qtquick; do
     python3 -c "import PyQt6.${mod%%:*}" 2>/dev/null || echo "${mod#*:}"
@@ -2963,7 +3167,7 @@ painel_deps_faltando() {
   # Pasta dos módulos QML do Qt 6 (pelo próprio Qt, se o PyQt6 existir; senão, a do Debian/Ubuntu).
   qml=$(python3 -c 'from PyQt6.QtCore import QLibraryInfo; print(QLibraryInfo.path(QLibraryInfo.LibraryPath.QmlImportsPath))' 2>/dev/null ||
     true)
-  [[ -d $qml ]] || qml=$(ls -d /usr/lib/*/qt6/qml 2>/dev/null | head -1)
+  [[ -d $qml ]] || qml=$(ls -d /usr/lib/*/qt6/qml /usr/lib/qt6/qml 2>/dev/null | head -1)
   for mod in QtQuick:qml6-module-qtquick QtQuick/Window:qml6-module-qtquick-window \
     QtQuick/Shapes:qml6-module-qtquick-shapes QtQuick/Effects:qml6-module-qtquick-effects \
     QtQuick/Dialogs:qml6-module-qtquick-dialogs QtQml:qml6-module-qtqml; do
@@ -2980,42 +3184,42 @@ cmd_painel() {
   falta=${falta% }
   # "cyberkde painel --checar": só confere as dependências (0 = tudo certo; 1 = falta, com a linha do apt).
   if [[ ${1:-} == --checar ]]; then
-    if [[ -n $falta ]]; then echo "sudo apt install $falta"; return 1; fi
+    if [[ -n $falta ]]; then echo "$(instalar_cmd) $falta"; return 1; fi
     return 0
   fi
-  [[ -f $app ]] || { echo "Painel não encontrado em $app (esta cópia do tema não traz o painel)." >&2; exit 1; }
+  [[ -f $app ]] || { echo "$(t "Painel não encontrado em $app (esta cópia do tema não traz o painel)." "Panel not found at $app (this copy of the theme has no panel).")" >&2; exit 1; }
   if [[ -n $falta ]]; then
-    echo "$(t "O painel precisa de pacotes que faltam. Instale com:" "The panel needs missing packages. Install them with:") sudo apt install $falta" >&2
+    echo "$(t "O painel precisa de pacotes que faltam. Instale com:" "The panel needs missing packages. Install them with:") $(instalar_cmd) $falta" >&2
     exit 1
   fi
   mkdir -p -- "$state"
   sem_travas setsid python3 "$app" "$@" >"$state/painel.log" 2>&1 </dev/null &
-  echo "Abrindo o painel do CyberKDE (mensagens em $state/painel.log)."
+  echo "$(t "Abrindo o painel do CyberKDE (mensagens em $state/painel.log)." "Opening the CyberKDE panel (messages in $state/painel.log).")"
 }
 
 # Parte do "status" que olha a sessão: animações do KWin carregadas, vídeo por software, barra e dock.
 status_sessao() {
   local info efeitos e
   if ! info=$(qdbus6 org.kde.KWin /KWin supportInformation 2>/dev/null); then
-    echo "Sessão: fora do Plasma (sem KWin no D-Bus); não dá para conferir animações e dock."
+    echo "$(t "Sessão: fora do Plasma (sem KWin no D-Bus); não dá para conferir animações e dock." "Session: outside Plasma (no KWin on D-Bus); animations and dock cannot be checked.")"
     return
   fi
   efeitos=$(qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.loadedEffects 2>/dev/null | tr '\n' ' ')
   for e in cyberkde_scan cyberkde_popups; do
     if [[ $(kreadconfig6 --file kwinrc --group Plugins --key "${e}Enabled" --default false) == true ]]; then
-      if [[ " $efeitos " == *" $e "* ]]; then echo "Animação $e: carregada."
-      else echo "Animação $e: ligada, mas o KWin NÃO a carregou."; fi
+      if [[ " $efeitos " == *" $e "* ]]; then echo "$(t "Animação $e: carregada." "Animation $e: loaded.")"
+      else echo "$(t "Animação $e: ligada, mas o KWin NÃO a carregou." "Animation $e: on, but KWin did NOT load it.")"; fi
     fi
   done
   if grep -qiE 'OpenGL renderer string: .*(llvmpipe|softpipe|software)' <<<"$info"; then
-    echo "Vídeo por software (llvmpipe): o KWin desliga todas as animações. Numa VM, ligue a aceleração 3D."
+    echo "$(t "Vídeo por software (llvmpipe): o KWin desliga todas as animações. Numa VM, ligue a aceleração 3D." "Software rendering (llvmpipe): KWin turns off all animations. In a VM, turn on 3D acceleration.")"
   fi
   if layout_tema; then
     local dock="nenhuma"
     if [[ -n $(latte_pids) ]]; then dock="Latte Dock"; elif [[ -s $dock_plasma_id ]]; then dock="painel do Plasma"; fi
-    echo "Layout: barra em cima e dock ($dock$([[ -e $appletsrc_orig ]] || echo ', ainda não aplicado'))."
+    echo "$(t "Layout: barra em cima e dock ($dock$([[ -e $appletsrc_orig ]] || echo ', ainda não aplicado'))." "Layout: bar on top and dock ($dock$([[ -e $appletsrc_orig ]] || echo ', not applied yet')).")"
   else
-    echo "Layout: manter (barra e dock como estavam)."
+    echo "$(t "Layout: manter (barra e dock como estavam)." "Layout: keep (bar and dock as they were).")"
   fi
 }
 
@@ -3026,7 +3230,7 @@ cmd_status() {
   for arg in "$@"; do
     case $arg in
       --json) json=1 ;;
-      *) echo "uso: cyberkde status [--json]" >&2; exit 2 ;;
+      *) echo "$(t "uso: cyberkde status [--json]" "usage: cyberkde status [--json]")" >&2; exit 2 ;;
     esac
   done
   if (( json )); then
@@ -3042,23 +3246,23 @@ cmd_status() {
       "$pendente" "$completa" "$(kvantum_ok && echo true || echo false)" "$(corp_json_campos)" "$(paleta_json)" "$(efeitos_status_json)" "$(papel_status_json)"
     return
   fi
-  printf 'Kvantum: %s\n' "$(kvantum_ok && echo instalado || echo 'NÃO instalado')"
+  printf 'Kvantum: %s\n' "$(kvantum_ok && t instalado installed || t 'NÃO instalado' 'NOT installed')"
   local corp
   corp_carregar
   corp=$(corp_atual)
-  printf 'Corporação: %s\n' "$(corp_nome "$corp")$(corp_logo_texto "$corp")"
-  if applekde_ligado; then echo "AppleKDE ligado: o 'cyberkde on' roda 'applekde off' antes."; fi
+  printf '%s: %s\n' "$(t Corporação Corporation)" "$(corp_nome "$corp")$(corp_logo_texto "$corp")"
+  if applekde_ligado; then echo "$(t "AppleKDE ligado: o 'cyberkde on' roda 'applekde off' antes." "AppleKDE is on: 'cyberkde on' runs 'applekde off' first.")"; fi
   status_sessao
   if [[ ! -s $ledger ]]; then
     if [[ -s $files ]] || modulo_registro; then
-      echo "CyberKDE: nenhuma chave alterada, mas ainda há registro de arquivos ou de módulos;" \
-        "rode 'cyberkde off' para terminar a reversão."
+      echo "$(t "CyberKDE: nenhuma chave alterada, mas ainda há registro de arquivos ou de módulos;" "CyberKDE: no key changed, but there are still file or module records;")" \
+        "$(t "rode 'cyberkde off' para terminar a reversão." "run 'cyberkde off' to finish restoring.")"
     else
-      echo "CyberKDE: desligado (nenhuma chave alterada)."
+      echo "$(t "CyberKDE: desligado (nenhuma chave alterada)." "CyberKDE: off (no key changed).")"
     fi
     return
   fi
-  echo "CyberKDE: ligado. Chaves alteradas (arquivo · grupo · chave = atual  [original]):"
+  echo "$(t "CyberKDE: ligado. Chaves alteradas (arquivo · grupo · chave = atual  [original]):" "CyberKDE: on. Changed keys (file · group · key = current  [original]):")"
   local file group key orig
   while IFS=$'\t' read -r file group key orig; do
     # Saída fechada (ex.: "| head") com o SIGPIPE ignorado por quem chamou: para em silêncio.
@@ -3095,7 +3299,7 @@ cmd_padrao() {
   [[ -x $bin ]] || bin=$app
   # 9>&-: o app aberto aqui vive muito mais que o script (ver sem_travas).
   XDG_CONFIG_HOME="$tmp" setsid "$bin" "${args[@]}" "${@:2}" >/dev/null 2>&1 </dev/null 3>&- 4>&- 9>&- &
-  echo "Abrindo '$app' com a aparência original (configuração temporária em $tmp)."
+  echo "$(t "Abrindo '$app' com a aparência original (configuração temporária em $tmp)." "Opening '$app' with its original look (temporary config in $tmp).")"
 }
 
 # "cyberkde papel": escolhe a imagem própria (fica em ~/.config/cyberkde/papel-de-parede). Só grava a
@@ -3108,22 +3312,22 @@ cmd_papel() {
     return
   fi
   if [[ -z $img ]]; then
-    if [[ -s $file ]]; then echo "Papel de parede: $(<"$file")"; else echo "Papel de parede: o do tema (padrão)."; fi
+    if [[ -s $file ]]; then echo "Papel de parede: $(<"$file")"; else echo "$(t "Papel de parede: o do tema (padrão)." "Wallpaper: the theme's (default).")"; fi
     return
   fi
   if [[ $img == padrao ]]; then
     rm -f -- "$file"
     papel_modo_gravar corp  # o do tema, que acompanha a corporação
-    echo "Papel de parede: o do tema."
+    echo "$(t "Papel de parede: o do tema." "Wallpaper: the theme's.")"
   else
-    [[ -f $img ]] || { echo "Imagem não encontrada: $img" >&2; exit 2; }
+    [[ -f $img ]] || { echo "$(t "Imagem não encontrada: $img" "Image not found: $img")" >&2; exit 2; }
     mkdir -p -- "$(dirname -- "$file")"
     readlink -f -- "$img" >"$file"
     papel_modo_gravar fixo  # escolha da pessoa: a corporação não sobrescreve
     echo "Papel de parede: $(<"$file")"
   fi
   if tema_ligado; then
-    echo "Para aplicar agora: cyberkde on papeis-de-parede"
+    echo "$(t "Para aplicar agora: cyberkde on papeis-de-parede" "To apply now: cyberkde on wallpapers")"
   fi
 }
 
@@ -3137,7 +3341,7 @@ cmd_checar() {
   case ${1:-} in
     --json) json=1 ;;
     "") ;;
-    *) echo "uso: cyberkde checar [--json]" >&2; exit 2 ;;
+    *) echo "$(t "uso: cyberkde checar [--json]" "usage: cyberkde check [--json]")" >&2; exit 2 ;;
   esac
   if (( json )); then exec 3>&1 1>&2; fi
   item() {  # nível texto-pt texto-en [correção...]
@@ -3174,18 +3378,20 @@ cmd_checar() {
   [[ -d /usr/share/icons/breeze-dark ]] || faltam+=("ícones Breeze (kf6-breeze-icon-theme)")
   if (( ${#faltam[@]} )); then
     item impede "Faltam programas: ${faltam[*]}." "Missing programs: ${faltam[*]}." \
-      "Ubuntu/Debian: sudo apt install python3 imagemagick qdbus-qt6 fontconfig util-linux kf6-breeze-icon-theme"
+      "Ubuntu/Debian: sudo apt install python3 imagemagick qdbus-qt6 fontconfig util-linux kf6-breeze-icon-theme" \
+      "Arch: sudo pacman -S --needed kconfig python imagemagick qt6-tools fontconfig util-linux breeze-icons"
   fi
   local plasma
   # Versão pelo pacote primeiro: fora de uma sessão gráfica (TTY, env -i) o "plasmashell --version"
   # aborta por não achar tela (e gera core dump), o que com pipefail derrubava o checar inteiro.
-  plasma=$(dpkg-query -W -f='${Version}' plasma-workspace 2>/dev/null | sed 's/^[0-9]*://; s/[^0-9.].*//' || true)
+  plasma=$(plasma_versao_pacote)
   if [[ -z $plasma && -n ${WAYLAND_DISPLAY:-${DISPLAY:-}} ]]; then
     plasma=$( { QT_QPA_PLATFORM=offscreen plasmashell --version 2>/dev/null || true; } | awk '{print $2}')
   fi
   if [[ -z $plasma ]]; then
     item impede "KDE Plasma não encontrado. O CyberKDE é um tema do Plasma 6." "KDE Plasma not found. CyberKDE is a Plasma 6 theme." \
-      "$(t "Ubuntu: sudo apt install kde-plasma-desktop (e escolha a sessão Plasma no login)" "Ubuntu: sudo apt install kde-plasma-desktop (and pick the Plasma session at login)")"
+      "$(t "Ubuntu: sudo apt install kde-plasma-desktop (e escolha a sessão Plasma no login)" "Ubuntu: sudo apt install kde-plasma-desktop (and pick the Plasma session at login)")" \
+      "Arch: sudo pacman -S plasma-meta"
   elif [[ ${plasma%%.*} != 6 ]]; then
     item impede "Plasma $plasma: o CyberKDE precisa do Plasma 6." "Plasma $plasma: CyberKDE needs Plasma 6."
   fi
@@ -3194,8 +3400,8 @@ cmd_checar() {
   painel_falta=$(painel_deps_faltando | tr '\n' ' ')
   if [[ -n ${painel_falta// /} ]]; then
     item aviso "Faltam pacotes do painel gráfico (cyberkde painel): ${painel_falta% }. O tema funciona sem ele." \
-      "Missing packages for the graphical panel (cyberkde painel): ${painel_falta% }. The theme works without it." \
-      "Ubuntu/Debian: sudo apt install ${painel_falta% }"
+      "Missing packages for the graphical panel (cyberkde panel): ${painel_falta% }. The theme works without it." \
+      "$(instalar_cmd) ${painel_falta% }"
   fi
   if ! kvantum_ok; then
     item corrigir "Kvantum para Qt 6 não instalado: sem ele os apps ficam sem as formas chanfradas das capturas." "Kvantum for Qt 6 is not installed: without it the apps lack the chamfered shapes from the screenshots." \
@@ -3233,24 +3439,36 @@ cmd_checar() {
   fi
 
   if [[ -z $(latte_instalado) ]]; then
-    if [[ -n $(latte_deb) ]]; then
+    if [[ -n $(latte_deb) ]] || latte_arch_disponivel; then
       item aviso "Latte Dock não instalado: a dock é um painel do Plasma. Para a dock das capturas:" "Latte Dock is not installed: the dock is a Plasma panel. For the dock in the screenshots:" \
-        "$(t "cyberkde latte (pacote revisado; pede a senha)" "cyberkde latte (reviewed package; asks for the password)")"
+        "$(if eh_arch; then t "cyberkde latte (compila o PKGBUILD revisado; pede a senha)" "cyberkde latte (builds the reviewed PKGBUILD; asks for the password)"; else t "cyberkde latte (pacote revisado; pede a senha)" "cyberkde latte (reviewed package; asks for the password)"; fi)"
     else
       item aviso "$latte_fora_da_lista" "$latte_fora_da_lista_en"
     fi
   fi
   if [[ -n $(apps_deb dolphin)$(apps_deb konsole) ]] && ! dpkg-query -W cyberkde-dolphin >/dev/null 2>&1; then
-    item aviso "Dolphin e Konsole animados (cascata e texto animado) disponíveis:" "Animated Dolphin and Konsole (cascade and animated text) are available:" "$(t "cyberkde animados (pacotes revisados; pede a senha)" "cyberkde animados (reviewed packages; asks for the password)")"
+    item aviso "Dolphin e Konsole animados (cascata e texto animado) disponíveis:" "Animated Dolphin and Konsole (cascade and animated text) are available:" "$(t "cyberkde animados (pacotes revisados; pede a senha)" "cyberkde animated (reviewed packages; asks for the password)")"
   fi
+  local a
+  for a in dolphin konsole; do
+    if apps_build_disponivel "$a" && [[ $(cat "$HOME/.local/opt/cyberkde-$a/.cyberkde-version" 2>/dev/null) != "$(app_versao_sistema "$a")" ]]; then
+      item aviso "$a animado não compilado para o $a $(app_versao_sistema "$a") instalado:" "Animated $a is not built for the installed $a $(app_versao_sistema "$a"):" \
+        "$(t "cyberkde animados" "cyberkde animated")"
+    fi
+  done
   if layout_tema && ! fc-list 2>/dev/null | grep -qi 'Andale Mono'; then
     item aviso "Fonte Andale Mono (relógio da barra) não instalada: o relógio usa uma fonte parecida." "Andale Mono font (bar clock) is not installed: the clock uses a similar font." \
-      "Ubuntu/Debian: sudo apt install ttf-mscorefonts-installer"
+      "Ubuntu/Debian: sudo apt install ttf-mscorefonts-installer    Arch: ttf-ms-fonts (AUR)"
   fi
   local app
   for app in dolphin konsole; do
-    tem "$app" || item aviso "$app não instalado: a parte do tema dele fica sem efeito (Ubuntu: sudo apt install $app)." "$app is not installed: its part of the theme has no effect (Ubuntu: sudo apt install $app)."
+    tem "$app" || item aviso "$app não instalado: a parte do tema dele fica sem efeito ($(instalar_cmd) $app)." "$app is not installed: its part of the theme has no effect ($(instalar_cmd) $app)."
   done
+  local lock=/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen
+  if [[ -d $lock/cyberkde ]] && ! grep -qs 'import "cyberkde"' "$lock/LockScreen.qml"; then
+    item aviso "Uma atualização do Plasma devolveu a tela de bloqueio original (a do tema estava ligada)." "A Plasma update restored the original lock screen (the theme's was on)." \
+      "$(t "cyberkde on login-bloqueio" "cyberkde on lock-screen")"
+  fi
   if applekde_ligado; then
     item aviso "AppleKDE ligado: o 'cyberkde on' roda 'applekde off' antes (os dois temas não se misturam)." "AppleKDE is on: 'cyberkde on' runs 'applekde off' first (the two themes never mix)."
   fi
@@ -3305,7 +3523,7 @@ latte_deb() {
   id=$(. /etc/os-release 2>/dev/null; echo "${ID:-}")
   ver=$(. /etc/os-release 2>/dev/null; echo "${VERSION_ID:-}")
   # Mesma leitura do cmd_checar (que chama esta função): sem tela, o plasmashell aborta.
-  plasma=$(dpkg-query -W -f='${Version}' plasma-workspace 2>/dev/null | sed 's/^[0-9]*://; s/[^0-9.].*//' || true)
+  plasma=$(plasma_versao_pacote)
   if [[ -z $plasma && -n ${WAYLAND_DISPLAY:-${DISPLAY:-}} ]]; then
     plasma=$( { QT_QPA_PLATFORM=offscreen plasmashell --version 2>/dev/null || true; } | awk '{print $2}')
   fi
@@ -3340,7 +3558,7 @@ open(dst, "wb").write(data)
     return 1
   fi
   chmod 644 "$tmp/pacote.deb"
-  echo "Instalando $desc (pede a senha)…"
+  echo "$(t "Instalando $desc (pede a senha)…" "Installing $desc (asks for the password)…")"
   if ! sem_travas sudo ${SUDO_ASKPASS:+-A} apt-get install -y "$tmp/pacote.deb"; then
     rm -rf -- "$tmp"
     return 1
@@ -3353,6 +3571,12 @@ latte_instalar_deb() {
   deb=$(latte_deb)
   [[ -n $deb ]] || return 1
   instalar_deb_conferido "$latte_release/${deb%% *}" "${deb#* }" "do Latte" || return 1
+  latte_marca_config
+  echo deb >"$project/latte/build/.instalado-por"  # o uninstall remove o pacote
+  echo "$(t "Latte Dock NG instalado pelo pacote revisado." "Latte Dock NG installed from the reviewed package.")"
+}
+
+latte_marca_config() {
   mkdir -p -- "$project/latte/build"
   # Sem configuração do Latte antes: a que surgir é do tema, e o uninstall a apaga.
   if [[ ! -e $config/latte && ! -e $project/latte/build/.config-latte-preexistente ]]; then
@@ -3360,8 +3584,32 @@ latte_instalar_deb() {
   elif [[ ! -e $project/latte/build/.config-latte-do-tema ]]; then
     : >"$project/latte/build/.config-latte-preexistente"
   fi
-  echo deb >"$project/latte/build/.instalado-por"  # o uninstall remove o pacote
-  echo "Latte Dock NG instalado pelo pacote revisado."
+}
+
+# Arch: compila o PKGBUILD de arch/latte-dock-ng (o do AUR, 1.2.62, com as correções de segurança do
+# fork revisado). O makepkg confere o SHA-256 do código e do patch; o pacman pede a senha e confirmação.
+latte_arch_pkgbuild="$project/arch/latte-dock-ng"
+latte_arch_disponivel() {
+  eh_arch && command -v makepkg >/dev/null && [[ -f $latte_arch_pkgbuild/PKGBUILD ]] &&
+    [[ $(plasma_versao_pacote) == 6.* ]]
+}
+latte_arch_versao() {  # versão do PKGBUILD, como o pacman mostra
+  (source "$latte_arch_pkgbuild/PKGBUILD" >/dev/null 2>&1 && echo "$pkgver-$pkgrel")
+}
+latte_instalar_arch() {
+  latte_arch_disponivel || return 1
+  local tmp
+  tmp=$(mktemp -d)
+  cp -- "$latte_arch_pkgbuild/PKGBUILD" "$latte_arch_pkgbuild/cyberkde-security.patch" "$tmp/"
+  echo "$(t "Compilando o Latte Dock NG $(latte_arch_versao) (alguns minutos; o pacman pede a senha)…" "Building Latte Dock NG $(latte_arch_versao) (a few minutes; pacman asks for the password)…")"
+  if ! (cd "$tmp" && sem_travas nice -n 19 makepkg --syncdeps --rmdeps --install --needed --cleanbuild); then
+    rm -rf -- "$tmp"
+    return 1
+  fi
+  rm -rf -- "$tmp"
+  latte_marca_config
+  echo pacman >"$project/latte/build/.instalado-por"  # o uninstall remove o pacote
+  echo "$(t "Latte Dock NG instalado (pacote latte-dock-ng $(latte_arch_versao))." "Latte Dock NG installed (package latte-dock-ng $(latte_arch_versao)).")"
 }
 
 # "cyberkde animados": Dolphin (cascata ao abrir pastas) e Konsole (texto e cursor animados) com o
@@ -3403,7 +3651,45 @@ apps_deb() {  # app
 # Versão do pacote ("25.12.3-cyberkde2") a partir do nome do arquivo na URL.
 apps_deb_versao() { local f=${1%% *}; f=${f##*/}; f=${f#*_}; printf '%s\n' "${f%_*}"; }
 
+# Arch: não há .deb; compila o app do sistema com o patch (cyberkde <app>-build), em ~/.local/opt.
+# Só se houver patch para a versão instalada (<app>/versoes/<versão>.patch, ou a versão do Ubuntu).
+apps_build_disponivel() {  # app
+  eh_arch && [[ -x /usr/bin/$1 ]] || return 1
+  local v
+  v=$(app_versao_sistema "$1")
+  [[ -n $v ]] && { [[ -f $project/$1/versoes/$v.patch ]] || [[ "/$(apps_versoes "$1")/" == *"/$v/"* ]]; }
+}
+
+animados_arch() {
+  if [[ ${1:-} == --disponivel ]]; then apps_build_disponivel dolphin || apps_build_disponivel konsole; return; fi
+  local app algum=0 fase v
+  for app in dolphin konsole; do
+    v=$(app_versao_sistema "$app")
+    if [[ $(cat "$HOME/.local/opt/cyberkde-$app/.cyberkde-version" 2>/dev/null) == "$v" ]]; then
+      echo "$(t "$app animado já compilado para o $app $v." "Animated $app is already built for $app $v.")"
+      algum=1
+      continue
+    fi
+    if ! apps_build_disponivel "$app"; then
+      echo "$(t "$app animado: ainda não há patch para o $app ${v:-?}; fica o $app do sistema." "Animated $app: no patch yet for $app ${v:-?}; the system $app stays.")"
+      continue
+    fi
+    echo "$(t "Compilando o $app $v com o patch do tema (alguns minutos)…" "Building $app $v with the theme patch (a few minutes)…")"
+    # Processo próprio: com set -e valendo (dentro de um "if" o bash o desliga) e a trava dele.
+    if "$project/scripts/cyberkde" "$app-build"; then
+      algum=1
+    else
+      echo "$(t "O $app animado não foi compilado; fica o $app do sistema." "Animated $app was not built; the system $app stays.")" >&2
+    fi
+  done
+  (( algum )) || return 1
+  if tema_ligado; then
+    for fase in carregamento konsole-anim; do "$project/scripts/cyberkde" on "$fase" || true; done
+  fi
+}
+
 cmd_animados() {
+  if eh_arch; then animados_arch "$@"; return; fi
   if [[ ${1:-} == --disponivel ]]; then [[ -n $(apps_deb dolphin)$(apps_deb konsole) ]]; return; fi
   local app deb algum=0 fase instalada
   for app in dolphin konsole; do
@@ -3416,24 +3702,24 @@ cmd_animados() {
     # o "animados" parava em "já instalado", e quem tinha o pacote antigo nunca recebia o novo.
     if [[ -n $instalada ]]; then
       if [[ -n $deb ]] && dpkg --compare-versions "$instalada" lt "$(apps_deb_versao "$deb")"; then
-        echo "Atualizando o $app animado: $instalada → $(apps_deb_versao "$deb")."
+        echo "$(t "Atualizando o $app animado: $instalada → $(apps_deb_versao "$deb")." "Updating animated $app: $instalada → $(apps_deb_versao "$deb").")"
       else
-        echo "$app animado já instalado ($instalada)."
+        echo "$(t "$app animado já instalado ($instalada)." "Animated $app is already installed ($instalada).")"
         algum=1
         continue
       fi
     fi
     if [[ -z $deb ]]; then
-      echo "$app animado: disponível só no Ubuntu 26.04 com o $app $(apps_versoes "$app") (validado); fica o $app do sistema."
+      echo "$(t "$app animado: disponível só no Ubuntu 26.04 com o $app $(apps_versoes "$app") (validado); fica o $app do sistema." "Animated $app: only available on Ubuntu 26.04 with $app $(apps_versoes "$app") (validated); the system $app stays.")"
       continue
     fi
     if instalar_deb_conferido "${deb%% *}" "${deb#* }" "do $app animado"; then
       mkdir -p -- "$state"
       grep -qx "cyberkde-$app" "$apps_pacotes" 2>/dev/null || echo "cyberkde-$app" >>"$apps_pacotes"
-      echo "$app animado instalado."
+      echo "$(t "$app animado instalado." "Animated $app installed.")"
       algum=1
     else
-      echo "O $app animado não foi instalado; fica o $app do sistema." >&2
+      echo "$(t "O $app animado não foi instalado; fica o $app do sistema." "Animated $app was not installed; the system $app stays.")" >&2
     fi
   done
   (( algum )) || return 1
@@ -3453,38 +3739,53 @@ apps_desinstalar() {
   [[ -s $apps_pacotes ]] || return 0
   local -a pk
   mapfile -t pk <"$apps_pacotes"
-  echo "Removendo os pacotes que o tema instalou: ${pk[*]} (pede a senha)…"
+  echo "$(t "Removendo os pacotes que o tema instalou: ${pk[*]} (pede a senha)…" "Removing the packages the theme installed: ${pk[*]} (asks for the password)…")"
   sem_travas sudo ${SUDO_ASKPASS:+-A} apt-get remove -y "${pk[@]}" ||
-    echo "Não consegui remover; rode: sudo apt remove ${pk[*]}" >&2
+    echo "$(t "Não consegui remover; rode: sudo apt remove ${pk[*]}" "Could not remove them; run: sudo apt remove ${pk[*]}")" >&2
 }
 
 cmd_latte() {
   # --disponivel: só responde se há pacote revisado para este sistema (para o instalar.sh perguntar).
-  if [[ ${1:-} == --disponivel ]]; then [[ -n $(latte_deb) ]]; return; fi
+  if [[ ${1:-} == --disponivel ]]; then [[ -n $(latte_deb) ]] || latte_arch_disponivel; return; fi
   local bin
   bin=$(latte_instalado)
+  # Só sobe de versão: um latte-dock-ng mais novo (ex.: do AUR, por um yay -Syu) fica como está.
+  local instalada_pacman=""
+  instalada_pacman=$(pacman -Q latte-dock-ng 2>/dev/null | awk '{print $2}' || true)
+  if [[ -n $bin && -n $instalada_pacman && $(cat "$project/latte/build/.instalado-por" 2>/dev/null) == pacman ]] &&
+    (( $(vercmp "$instalada_pacman" "$(latte_arch_versao)") < 0 )); then
+    echo "$(t "Atualizando o Latte Dock para $(latte_arch_versao)." "Updating Latte Dock to $(latte_arch_versao).")"
+    latte_instalar_arch || { echo "$(t "Não consegui atualizar o Latte; fica a versão instalada." "Could not update Latte; the installed version stays.")" >&2; return 1; }
+    latte_aplicar_se_ligado
+    return 0
+  fi
   if [[ -n $bin ]]; then
     # Pacote instalado pelo tema, de uma versão anterior: atualiza para a revisada atual.
     if [[ $(cat "$project/latte/build/.instalado-por" 2>/dev/null) == deb && -n $(latte_deb) &&
       $(dpkg-query -W -f='${Version}' latte-dock-ng 2>/dev/null) != "$latte_pacote_versao" ]]; then
-      echo "Atualizando o Latte Dock para $latte_pacote_versao."
-      latte_instalar_deb || { echo "Não consegui atualizar o Latte; fica a versão instalada." >&2; return 1; }
+      echo "$(t "Atualizando o Latte Dock para $latte_pacote_versao." "Updating Latte Dock to $latte_pacote_versao.")"
+      latte_instalar_deb || { echo "$(t "Não consegui atualizar o Latte; fica a versão instalada." "Could not update Latte; the installed version stays.")" >&2; return 1; }
     else
-      echo "Latte Dock já instalado: $bin."
+      echo "$(t "Latte Dock já instalado: $bin." "Latte Dock is already installed: $bin.")"
     fi
     latte_aplicar_se_ligado
     return 0
   fi
   if [[ ${XDG_SESSION_TYPE:-wayland} != wayland ]]; then
-    echo "O Latte Dock NG só funciona no Wayland; a dock fica o painel do Plasma."
+    echo "$(t "O Latte Dock NG só funciona no Wayland; a dock fica o painel do Plasma." "Latte Dock NG only works on Wayland; the dock stays a Plasma panel.")"
     return 1
+  fi
+  if latte_arch_disponivel; then
+    latte_instalar_arch || { echo "$(t "O Latte não foi instalado; a dock fica o painel do Plasma." "Latte was not installed; the dock stays a Plasma panel.")" >&2; return 1; }
+    latte_aplicar_se_ligado
+    return 0
   fi
   if [[ -z $(latte_deb) ]]; then
     echo "$latte_fora_da_lista"
     return 1
   fi
   if ! latte_instalar_deb; then
-    echo "O Latte não foi instalado; a dock fica o painel do Plasma." >&2
+    echo "$(t "O Latte não foi instalado; a dock fica o painel do Plasma." "Latte was not installed; the dock stays a Plasma panel.")" >&2
     return 1
   fi
   latte_aplicar_se_ligado
@@ -3492,21 +3793,28 @@ cmd_latte() {
 
 # Remove o Latte que o "cyberkde latte" instalou (o pacote). Um Latte que não veio daqui fica.
 latte_desinstalar() {
-  [[ $(cat "$project/latte/build/.instalado-por" 2>/dev/null) == deb ]] || return 0
+  local por
+  por=$(cat "$project/latte/build/.instalado-por" 2>/dev/null || true)
+  [[ $por == deb || $por == pacman ]] || return 0
   # Só o Latte do pacote (/usr/bin), e só porque foi o tema que o instalou.
   local pid
   for pid in $(pgrep -x latte-dock-ng || true); do
     [[ $(readlink -f "/proc/$pid/exe" 2>/dev/null) == /usr/bin/latte-dock-ng ]] && kill "$pid" 2>/dev/null
   done
-  echo "Removendo o pacote do Latte que o tema instalou (pede a senha)…"
-  sem_travas sudo ${SUDO_ASKPASS:+-A} apt-get remove -y latte-dock-ng ||
-    echo "Não consegui remover o pacote; rode: sudo apt remove latte-dock-ng" >&2
+  echo "$(t "Removendo o pacote do Latte que o tema instalou (pede a senha)…" "Removing the Latte package the theme installed (asks for the password)…")"
+  if [[ $por == pacman ]]; then
+    sem_travas sudo ${SUDO_ASKPASS:+-A} pacman -Rs latte-dock-ng ||
+      echo "$(t "Não consegui remover o pacote; rode: sudo pacman -Rs latte-dock-ng" "Could not remove the package; run: sudo pacman -Rs latte-dock-ng")" >&2
+  else
+    sem_travas sudo ${SUDO_ASKPASS:+-A} apt-get remove -y latte-dock-ng ||
+      echo "$(t "Não consegui remover o pacote; rode: sudo apt remove latte-dock-ng" "Could not remove the package; run: sudo apt remove latte-dock-ng")" >&2
+  fi
   # O Latte cria esta pasta ao rodar (knscompat); não pertence ao pacote.
   rm -rf -- "$data/latte-dock-ng"
   if [[ -e $project/latte/build/.config-latte-do-tema ]]; then
     rm -rf -- "$config/latte"  # não existia antes do tema instalar o Latte
   elif [[ -d $config/latte ]]; then
-    echo "Os layouts do Latte ficaram em $config/latte (apague a pasta se não for mais usar o Latte)."
+    echo "$(t "Os layouts do Latte ficaram em $config/latte (apague a pasta se não for mais usar o Latte)." "The Latte layouts are still in $config/latte (delete the folder if you will not use Latte again).")"
   fi
 }
 
@@ -3532,22 +3840,23 @@ cmd_layout() {
   if (( cor_json )); then exec 3>&1 1>&2; else exec 3>&1; fi
   if [[ -z $v ]]; then
     if (( cor_json )); then efeito_cmd_layout; return; fi
-    echo "Layout: $(layout_preset) (${layout_nomes[$(layout_preset)]}: ${layout_desc[$(layout_preset)]})"
+    local lp; lp=$(layout_preset)
+    echo "Layout: $(nome_cli "$lp") ($(t "${layout_nomes[$lp]}: ${layout_desc[$lp]}" "${layout_nomes_en[$lp]}: ${layout_desc_en[$lp]}"))"
     return
   fi
   [[ " ${layout_presets[*]} " == *" $v "* || $v == manter ]] ||
-    cor_exit 2 "$(t "uso: cyberkde layout [tema|duas-telas|compacto|lateral|manter] [--aplicar] [--json]" "usage: cyberkde layout [tema|duas-telas|compacto|lateral|manter] [--aplicar] [--json]")"
+    cor_exit 2 "$(t "uso: cyberkde layout [tema|duas-telas|compacto|lateral|manter] [--aplicar] [--json]" "usage: cyberkde layout [theme|two-screens|compact|side|keep] [--apply] [--json]")"
   if (( aplicar )); then layout_trocar "$v"; return; fi
   mkdir -p -- "$(dirname -- "$layout_file")"
   echo "$v" >"$layout_file"
-  echo "Layout: $v."
+  echo "Layout: $(nome_cli "$v")."
   if tema_ligado; then
-    echo "Para aplicar agora: cyberkde layout $v --aplicar"
+    echo "$(t "Para aplicar agora: cyberkde layout $v --aplicar" "To apply now: cyberkde layout $(nome_cli "$v") --apply")"
   fi
 }
 
 cmd_uninstall() {
-  cmd_off || { echo "Reversão incompleta; não vou remover os arquivos instalados." >&2; exit 1; }
+  cmd_off || { echo "$(t "Reversão incompleta; não vou remover os arquivos instalados." "Restore incomplete; the installed files will not be removed.")" >&2; exit 1; }
   latte_desinstalar
   apps_desinstalar
   rm -rf "$config/Kvantum/CyberKDE" "$data/fonts/CyberKDE" \
@@ -3571,7 +3880,7 @@ cmd_uninstall() {
   # corporação da usuária (~/.config/cyberkde/corporacoes) ficam: são dela, não do tema.
   if [[ -d $config/cyberkde ]]; then
     find "$config/cyberkde" -mindepth 1 -maxdepth 1 ! -name corporacoes -exec rm -rf -- {} +
-    rmdir -- "$config/cyberkde" 2>/dev/null || echo "Seus logos de corporação ficaram em $corp_logos_usuario."
+    rmdir -- "$config/cyberkde" 2>/dev/null || echo "$(t "Seus logos de corporação ficaram em $corp_logos_usuario." "Your corporation logos are still in $corp_logos_usuario.")"
   fi
   rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/cyberkde" "$state"
   # Lançador do painel, instalado pelo instalar.sh fora do registro (ver lá).
@@ -3584,7 +3893,7 @@ cmd_uninstall() {
     rmdir -- "$d" 2>/dev/null || true
   done
   if [[ -d $data/fonts ]]; then fc-cache -f "$data/fonts" >/dev/null; fi
-  echo "Arquivos do tema removidos."
+  echo "$(t "Arquivos do tema removidos." "Theme files removed.")"
   # Cópia feita pelo instalar.sh (tem a marca .instalado): remove também o programa e o comando.
   # Numa pasta de desenvolvimento (sem a marca), o código fica.
   if [[ -e $project/.instalado ]]; then
@@ -3593,6 +3902,55 @@ cmd_uninstall() {
     rm -rf -- "$project"  # o bash já tem este script aberto: apagar o arquivo não interrompe a execução
     echo "Programa removido de $project."
   fi
+}
+
+ajuda() {
+  if [[ $cyberkde_lang == pt ]]; then sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'; return; fi
+  cat <<'HELP'
+cyberkde: turn the CyberKDE theme on and off, part by part.
+
+  cyberkde on [part] [--no-sudo] [--json] [--progress]
+                       turn everything on, or one part: dolphin, apps, windows, animated-dolphin,
+                       icons, konsole, konsole-anim, system-icons, kwin-extras, login, wallpapers,
+                       plasma, bar-and-dock; optional (not in "on"): cursor, sound, lock-screen
+  cyberkde off [part] [--no-sudo] [--json] [--progress]
+                       restore every original value (or only one part)
+  cyberkde status [--json]   what is on, and whether the animations loaded
+  cyberkde phases [--json]   every part, and which ones are on
+  cyberkde check             requirements and known problems, with the fix for each
+  cyberkde panel [--check]   open the graphical panel (--check: only check its packages)
+  cyberkde corp <id|none|--list> [--no-sudo] [--json]
+                       corporation: palette, menu icon, splash logo and wallpaper
+  cyberkde color <#RRGGBB|default> [--secondary #RRGGBB] [--no-sudo] [--json]
+                       accent color of the whole theme
+  cyberkde wallpaper [image|default]   your own wallpaper for the desktop and lock screen
+  cyberkde layout <theme|two-screens|compact|side|keep> [--apply]   bar and dock arrangement
+  cyberkde effect --list [--json]      every setting, its options and its state
+  cyberkde effect <id> [options]       change one setting (no options: show it). Main ones:
+    windows [--open ID] [--close ID] [--first-time ID] [--open-duration MS] [--intensity N]
+            IDs: scan frame glitch data hologram crt decode chamfer braindance shards converge
+                 disintegrate terminal neon modal pulse pixel blinds doors radar fade none
+    motion <full|reduced|minimal>        animation level of everything
+    konsole-cascade on|off [--lines N] [--colors theme|video]
+    konsole-{rain,grid,crt,sweep,hud,sparks,error,bell} on|off [--intensity N] ...
+    style-preset --variant <neo-military|dense-military|clean-netwatch|arasaka-luxury|
+                            worn-terminal|neon-kitsch|reading>
+    style-* --variant V                  one interface setting (effect --list shows the values)
+    cursor <default|neon|minimal|crosshair>   sound <default|subtle>
+    wallpaper <a|b|c|d|corp|default>     menu <default|list|grid|fullscreen>
+    splash <full|short|none>             login [--entrance E] [--panel left|center] [--success on|off]
+    dock [--indicator line|dot] [--zoom on|off] [--launch on|off]
+    desktops <off|4|6> [--names cyber|simple]   modal-dim on|off   click on|off
+    icons [default|alt|<group>=<default|alt>]
+  cyberkde latte          install Latte Dock NG (Ubuntu 26.04 package, or the Arch PKGBUILD)
+  cyberkde animated       Dolphin and Konsole with the theme animations (package or local build)
+  cyberkde original [app] open an app with its original look, to compare
+  cyberkde install        only install/update the theme files
+  cyberkde uninstall      turn off and remove everything
+  --lang en|pt            message language (default: your session language)
+
+Portuguese names (painel, efeito, checar, animados...) keep working.
+HELP
 }
 
 # --lang en (ou --idioma en), em qualquer posição: idioma das mensagens para o painel (ver t()).
@@ -3604,8 +3962,10 @@ while (( $# )); do
     *) args+=("$1"); shift ;;
   esac
 done
-set -- "${args[@]}"
-unset args
+idioma_normaliza
+cli_en_para_pt "${args[@]}"
+set -- "${cli_args[@]}"
+unset args cli_args
 
 case "${1:-status}" in
   on) cmd_on "${@:2}" ;;  # trava por conta própria (precisa responder "ocupado" em JSON)
@@ -3627,6 +3987,6 @@ case "${1:-status}" in
   animados) cmd_animados "${@:2}" ;;
   layout) cmd_layout "${@:2}" ;;
   uninstall) take_lock || busy; cmd_uninstall ;;
-  -h | --help | help | ajuda) sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//' ;;
-  *) sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+  -h | --help | help | ajuda) ajuda ;;
+  *) ajuda; exit 1 ;;
 esac

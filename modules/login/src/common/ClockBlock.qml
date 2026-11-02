@@ -27,7 +27,8 @@ Item {
     }
 
     function dateText(d) {
-        const s = d.toLocaleDateString(Qt.locale("pt_BR"), "dddd, d 'de' MMMM")
+        const s = CK.en ? d.toLocaleDateString(Qt.locale("en_US"), "dddd, MMMM d")
+                        : d.toLocaleDateString(Qt.locale("pt_BR"), "dddd, d 'de' MMMM")
         return s.charAt(0).toUpperCase() + s.slice(1)
     }
 
@@ -44,7 +45,7 @@ Item {
                 spacing: 8
                 Rectangle { width: 16; height: 3; color: CK.red; anchors.verticalCenter: parent.verticalCenter }
                 Text {
-                    text: "HORA LOCAL"
+                    text: CK.tx("HORA LOCAL", "LOCAL TIME")
                     color: CK.txt2
                     font.family: CK.fontUi
                     font.pixelSize: 12

@@ -59,12 +59,12 @@ FocusScope {
     property real grantGlow: 0
 
     readonly property string msgKind: message !== "" ? messageKind : (capsLock ? "caps" : "")
-    readonly property string msgText: message !== "" ? message : (capsLock ? "Caps Lock está ativado." : "")
+    readonly property string msgText: message !== "" ? message : (capsLock ? CK.tx("Caps Lock está ativado.", "Caps Lock is on.") : "")
     readonly property color msgColor: msgKind === "error" ? CK.danger : (msgKind === "caps" ? CK.gold
                                       : (msgKind === "ok" ? CK.green : CK.cyan))
 
     readonly property bool failed: messageKind === "error" && message !== ""
-    readonly property string statusText: granted ? "ACESSO CONCEDIDO" : (busy ? "VERIFICANDO" : (failed ? "FALHA" : "PRONTO"))
+    readonly property string statusText: granted ? CK.tx("ACESSO CONCEDIDO", "ACCESS GRANTED") : (busy ? CK.tx("VERIFICANDO", "VERIFYING") : (failed ? CK.tx("FALHA", "FAILED") : CK.tx("PRONTO", "READY")))
     readonly property color statusColor: granted ? CK.green : (failed ? CK.danger : CK.cyan)
 
     property real shakeX: 0
@@ -89,7 +89,7 @@ FocusScope {
     function concedido() {
         busy = false
         granted = true
-        message = isLock ? "Acesso concedido. Desbloqueando…" : "Acesso concedido. Iniciando a sessão…"
+        message = isLock ? CK.tx("Acesso concedido. Desbloqueando…", "Access granted. Unlocking…") : CK.tx("Acesso concedido. Iniciando a sessão…", "Access granted. Starting the session…")
         messageKind = "ok"
         grantPulse.restart()
     }
@@ -113,7 +113,7 @@ FocusScope {
             return
         const u = typingUser ? userField.text.trim() : userName
         if (!isLock && u.length === 0) {
-            fail("Digite o nome de usuário.")
+            fail(CK.tx("Digite o nome de usuário.", "Type the user name."))
             userField.forceActiveFocus()
             return
         }
@@ -129,7 +129,7 @@ FocusScope {
             const it = userRep.itemAt(i)
             a.push(it ? (it.uReal || it.uName) : "")
         }
-        a.push("Outro usuário…")
+        a.push(CK.tx("Outro usuário…", "Other user…"))
         return a
     }
 
@@ -228,7 +228,7 @@ FocusScope {
                 id: tabLabel
                 x: 12
                 anchors.verticalCenter: parent.verticalCenter
-                text: root.isLock ? "BLOQUEIO" : "ACESSO"
+                text: root.isLock ? CK.tx("BLOQUEIO", "LOCK") : CK.tx("ACESSO", "ACCESS")
                 color: CK.textOnRed
                 font.family: CK.fontUi
                 font.pixelSize: 12
@@ -324,7 +324,7 @@ FocusScope {
                         height: 30
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: root.isLock ? "Sessão bloqueada" : "Identificação"
+                            text: root.isLock ? CK.tx("Sessão bloqueada", "Session locked") : CK.tx("Identificação", "Identification")
                             color: CK.txt1
                             font.family: CK.fontUi
                             font.pixelSize: 22
@@ -352,8 +352,8 @@ FocusScope {
                     Text {
                         width: parent.width
                         wrapMode: Text.WordWrap
-                        text: root.isLock ? "Digite a senha para voltar à sua sessão."
-                                          : "Escolha o usuário e digite a senha."
+                        text: root.isLock ? CK.tx("Digite a senha para voltar à sua sessão.", "Type your password to return to your session.")
+                                          : CK.tx("Escolha o usuário e digite a senha.", "Choose the user and type the password.")
                         color: CK.txt2
                         font.family: CK.fontUi
                         font.pixelSize: 14
@@ -405,7 +405,7 @@ FocusScope {
                             Text {
                                 width: parent.width
                                 elide: Text.ElideRight
-                                text: root.typingUser ? "Outro usuário" : root.realName
+                                text: root.typingUser ? CK.tx("Outro usuário", "Other user") : root.realName
                                 color: CK.txt1
                                 font.family: CK.fontUi
                                 font.pixelSize: 18
@@ -414,9 +414,9 @@ FocusScope {
                             Text {
                                 width: parent.width
                                 elide: Text.ElideRight
-                                text: root.typingUser ? "Digite o nome de usuário e a senha"
+                                text: root.typingUser ? CK.tx("Digite o nome de usuário e a senha", "Type the user name and password")
                                     : root.realName !== root.userName ? "@" + root.userName
-                                    : (root.isLock ? "Sessão local" : "Conta local")
+                                    : (root.isLock ? CK.tx("Sessão local", "Local session") : CK.tx("Conta local", "Local account"))
                                 color: CK.txt2
                                 font.family: CK.fontUi
                                 font.pixelSize: 14
@@ -429,7 +429,7 @@ FocusScope {
                             anchors.verticalCenter: parent.verticalCenter
                             compact: true
                             visible: !root.isLock && userRep.count > 0
-                            text: "Trocar"
+                            text: CK.tx("Trocar", "Switch")
                             trailing: "down"
                             onClicked: root.openChooser(userChooser, switchBtn, false)
                         }
@@ -438,7 +438,7 @@ FocusScope {
                         id: userField
                         width: parent.width
                         visible: root.typingUser
-                        placeholder: "Nome de usuário"
+                        placeholder: CK.tx("Nome de usuário", "User name")
                         enabled: root.inputEnabled && !root.busy
                         onAccepted: pass.forceActiveFocus()
                     }
@@ -455,7 +455,7 @@ FocusScope {
                     width: content.width
                     spacing: 8
                     Text {
-                        text: "SENHA"
+                        text: CK.tx("SENHA", "PASSWORD")
                         color: CK.txt2
                         font.family: CK.fontUi
                         font.pixelSize: 11
@@ -467,7 +467,7 @@ FocusScope {
                         width: parent.width
                         password: true
                         focus: true
-                        placeholder: "Senha"
+                        placeholder: CK.tx("Senha", "Password")
                         error: root.failed
                         enabled: root.inputEnabled && !root.busy
                         onAccepted: root.startLogin()
@@ -545,7 +545,7 @@ FocusScope {
                         primary: true
                         busy: root.busy
                         trailing: root.busy ? "" : "arrow"
-                        text: root.granted ? "Concedido" : (root.busy ? "Verificando…" : (root.isLock ? "Desbloquear" : "Entrar"))
+                        text: root.granted ? CK.tx("Concedido", "Granted") : (root.busy ? CK.tx("Verificando…", "Verifying…") : (root.isLock ? CK.tx("Desbloquear", "Unlock") : CK.tx("Entrar", "Log in")))
                         enabled: root.inputEnabled
                         onClicked: root.startLogin()
                     }
@@ -562,7 +562,7 @@ FocusScope {
 
         ChoiceList {
             id: userChooser
-            title: "USUÁRIO"
+            title: CK.tx("USUÁRIO", "USER")
             width: 300
             entries: root.userEntries()
             currentIndex: root.manualUser ? userRep.count : root.userIndex
@@ -572,7 +572,7 @@ FocusScope {
 
         ChoiceList {
             id: sessionChooser
-            title: "SESSÃO"
+            title: CK.tx("SESSÃO", "SESSION")
             width: Math.max(240, sessionBtn.width)
             entries: root.sessionEntries()
             currentIndex: root.sessionIndex

@@ -227,7 +227,7 @@ kx_responder() {  # id estado-json avisos...
     local corpo=${estado#\{}
     printf '{"efeito":"%s",%s,"avisos":%s}\n' "$id" "${corpo%\}}" "$(json_list_str "$@")" >&3
   else
-    echo "$id: $estado"
+    echo "$(nome_cli "$id"): $estado"
     local a
     for a in "$@"; do echo "$(t Aviso Note): $a" >&2; done
   fi
@@ -253,7 +253,7 @@ efeito_cmd_movimento() {
   for arg in "$@"; do
     case $arg in completo | reduzido | minimo) nivel=$arg ;; *) nivel=invalido ;; esac
   done
-  [[ $nivel != invalido ]] || cor_exit 2 "$(t "uso: cyberkde efeito movimento [completo|reduzido|minimo] [--json]" "usage: cyberkde efeito movimento [completo|reduzido|minimo] [--json]")"
+  [[ $nivel != invalido ]] || cor_exit 2 "$(t "uso: cyberkde efeito movimento [completo|reduzido|minimo] [--json]" "usage: cyberkde effect motion [full|reduced|minimal] [--json]")"
   local -a avisos=()
   if [[ -n $nivel ]]; then
     take_lock || cor_exit 3 "$(t "ocupado: outra execução do cyberkde está em andamento" "busy: another cyberkde run is in progress")"
@@ -279,7 +279,7 @@ kx_cmd_liga() {  # id padrão função-de-aplicar args...
   local id=$1 padrao=$2 aplicar=$3 acao="" arg
   shift 3
   for arg in "$@"; do case $arg in on | off) acao=$arg ;; *) acao=invalida ;; esac; done
-  [[ $acao != invalida ]] || cor_exit 2 "$(t "uso: cyberkde efeito $id [on|off] [--json]" "usage: cyberkde efeito $id [on|off] [--json]")"
+  [[ $acao != invalida ]] || cor_exit 2 "$(t "uso: cyberkde efeito $id [on|off] [--json]" "usage: cyberkde effect $(nome_cli "$id") [on|off] [--json]")"
   local -a avisos=()
   if [[ -n $acao ]]; then
     take_lock || cor_exit 3 "$(t "ocupado: outra execução do cyberkde está em andamento" "busy: another cyberkde run is in progress")"
@@ -339,7 +339,7 @@ efeito_cmd_areas() {
       *) n=invalido ;;
     esac
   done
-  [[ $n != invalido ]] || cor_exit 2 "$(t "uso: cyberkde efeito areas [off|4|6] [--nomes cyber|simples] [--json]" "usage: cyberkde efeito areas [off|4|6] [--nomes cyber|simples] [--json]")"
+  [[ $n != invalido ]] || cor_exit 2 "$(t "uso: cyberkde efeito areas [off|4|6] [--nomes cyber|simples] [--json]" "usage: cyberkde effect desktops [off|4|6] [--names cyber|simple] [--json]")"
   local -a avisos=()
   if [[ -n $n$nomes ]]; then
     take_lock || cor_exit 3 "$(t "ocupado: outra execução do cyberkde está em andamento" "busy: another cyberkde run is in progress")"

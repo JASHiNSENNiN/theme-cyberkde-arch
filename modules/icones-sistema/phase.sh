@@ -20,7 +20,7 @@ icones_sistema_avisar() {
 }
 
 phase_icones-sistema() {
-  [[ -f $data/icons/CyberKDE/index.theme ]] || { echo "Tema de ícones CyberKDE não instalado (rode 'cyberkde install')." >&2; return 1; }
+  [[ -f $data/icons/CyberKDE/index.theme ]] || { echo "$(t "Tema de ícones CyberKDE não instalado (rode 'cyberkde install')." "CyberKDE icon theme is not installed (run 'cyberkde install').")" >&2; return 1; }
   set_key kdeglobals Icons Theme CyberKDE
   icones_sistema_avisar
 }
