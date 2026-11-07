@@ -82,6 +82,17 @@ kvantum_ok() { [[ -n $kvantum_plugin ]]; }
 # Arch e derivadas (pacman, sem apt): outros nomes de pacote, PKGBUILD no lugar do .deb.
 eh_arch() { command -v pacman >/dev/null && ! command -v apt-get >/dev/null; }
 instalar_cmd() { if eh_arch; then echo "sudo pacman -S --needed"; else echo "sudo apt install"; fi; }
+# Debian package names (first field of each stdin line) to Arch ones; Debian/Ubuntu pass through.
+pacotes_distro() {
+  if eh_arch; then
+    sed -E 's/^python3-pyqt6[^\t]*/python-pyqt6/; s/^python3-numpy/python-numpy/
+      s/^qml6-module-qtmultimedia/qt6-multimedia/; s/^qml6-module-org-kde-layershell/layer-shell-qt/
+      s/^qml6-module-[^\t]*/qt6-declarative/; s/^pulseaudio-utils/libpulse/
+      s/^tesseract-ocr-([a-z]+)/tesseract-data-\1/; s/^tesseract-ocr/tesseract/; s/^lm-sensors/lm_sensors/
+      s/^poppler-utils/poppler/; s/^dbus-bin/dbus/; s/^kde-spectacle/spectacle/; s/^pipewire-bin/pipewire/' |
+      awk -F'\t' '!seen[$1]++'
+  else cat; fi
+}
 # Versão do Plasma pelo gerenciador de pacotes (funciona fora da sessão gráfica); nada se não achar.
 plasma_versao_pacote() {
   { dpkg-query -W -f='${Version}' plasma-workspace 2>/dev/null || pacman -Q plasma-workspace 2>/dev/null | awk '{print $2}'; } |
@@ -3385,12 +3396,13 @@ arquivos_deps_faltando() {
     painel_deps_faltando
     qml=$(python3 -c 'from PyQt6.QtCore import QLibraryInfo; print(QLibraryInfo.path(QLibraryInfo.LibraryPath.QmlImportsPath))' 2>/dev/null ||
       true)
-    [[ -d $qml ]] || qml=$(ls -d /usr/lib/*/qt6/qml 2>/dev/null | head -1)
+    [[ -d $qml ]] || qml=$(ls -d /usr/lib/*/qt6/qml /usr/lib/qt6/qml 2>/dev/null | head -1)
     [[ -f $qml/QtMultimedia/qmldir ]] || echo qml6-module-qtmultimedia
-  } | sort -u
+  } | pacotes_distro | sort -u
 }
 # Opcionais (o app funciona sem; só some o recurso): pacote<TAB>para quê (PT)<TAB>(EN).
-arquivos_opcionais_faltando() {
+arquivos_opcionais_faltando() { arquivos_opcionais_debian | pacotes_distro; }
+arquivos_opcionais_debian() {
   command -v ffmpegthumbnailer >/dev/null || command -v ffmpeg >/dev/null ||
     printf 'ffmpegthumbnailer\tminiaturas de vídeo\tvideo thumbnails\n'
   command -v pdftoppm >/dev/null || printf 'poppler-utils\tminiaturas de PDF\tPDF thumbnails\n'
@@ -3464,14 +3476,14 @@ cmd_arquivos() {
   falta=$(arquivos_deps_faltando | paste -sd' ' -)
   if [[ ${1:-} == --checar ]]; then
     while IFS=$'\t' read -r pac pt en; do
-      [[ -n $pac ]] && echo "$(t "Opcional ($pt)" "Optional ($en)"): sudo apt install $pac" >&2
+      [[ -n $pac ]] && echo "$(t "Opcional ($pt)" "Optional ($en)"): $(instalar_cmd) $pac" >&2
     done < <(arquivos_opcionais_faltando)
-    if [[ -n $falta ]]; then echo "sudo apt install $falta"; return 1; fi
+    if [[ -n $falta ]]; then echo "$(instalar_cmd) $falta"; return 1; fi
     return 0
   fi
   [[ -f $arquivos_app ]] || { echo "$(t "DATASHARD não encontrado em $arquivos_app (esta cópia do tema não traz o app)." "DATASHARD not found at $arquivos_app (this copy of the theme does not include the app).")" >&2; exit 1; }
   if [[ -n $falta ]]; then
-    echo "$(t "O DATASHARD precisa de pacotes que faltam. Instale com:" "DATASHARD needs missing packages. Install them with:") sudo apt install $falta" >&2
+    echo "$(t "O DATASHARD precisa de pacotes que faltam. Instale com:" "DATASHARD needs missing packages. Install them with:") $(instalar_cmd) $falta" >&2
     exit 1
   fi
   [[ -z ${1:-} || -d $1 ]] || { echo "$(t "Pasta não encontrada: $1" "Folder not found: $1")" >&2; exit 2; }
@@ -3738,12 +3750,12 @@ cmd_checar() {
     if [[ -n $il_falta ]]; then
       item aviso "Faltam pacotes da ilha dinâmica (cyberkde ilha): $il_falta. O tema funciona sem ela." \
         "Missing packages for the dynamic island (cyberkde ilha): $il_falta. The theme works without it." \
-        "Ubuntu/Debian: sudo apt install $il_falta"
+        "$(instalar_cmd) $il_falta"
     fi
     if [[ -n $il_opc ]]; then
       item aviso "Opcionais da ilha não instalados ($il_opc): sem eles, só some o recurso." \
         "Island optional tools not installed ($il_opc): without them, only that feature is missing." \
-        "Ubuntu/Debian: sudo apt install $il_opc"
+        "$(instalar_cmd) $il_opc"
     fi
   fi
   if declare -F arquivos_faltando_cerca >/dev/null && [[ -n $(arquivos_faltando_cerca) ]]; then
@@ -3751,7 +3763,7 @@ cmd_checar() {
     cf=$(arquivos_faltando_cerca | paste -sd' ' -)
     item aviso "Faltam pacotes da Cyber Fence (widget-cerca): $cf. Sem eles, ela não abre." \
       "Cyber Fence packages are missing (widget-cerca): $cf. It does not load without them." \
-      "Ubuntu/Debian: sudo apt install $cf"
+      "$(instalar_cmd) $cf"
   fi
   if [[ -f $arquivos_app ]]; then
     local ds_falta ds_opc
@@ -3760,12 +3772,12 @@ cmd_checar() {
     if [[ -n $ds_falta ]]; then
       item aviso "Faltam pacotes do DATASHARD (cyberkde arquivos): $ds_falta. O tema funciona sem ele." \
         "Missing packages for DATASHARD (cyberkde arquivos): $ds_falta. The theme works without it." \
-        "Ubuntu/Debian: sudo apt install $ds_falta"
+        "$(instalar_cmd) $ds_falta"
     fi
     if [[ -n $ds_opc ]]; then
       item aviso "Opcionais do DATASHARD não instalados ($ds_opc): sem eles, faltam miniaturas de vídeo e PDF ou o 7z." \
         "DATASHARD optional tools not installed ($ds_opc): without them, video and PDF thumbnails or 7z are missing." \
-        "Ubuntu/Debian: sudo apt install $ds_opc"
+        "$(instalar_cmd) $ds_opc"
     fi
   fi
   if ! kvantum_ok; then

@@ -456,6 +456,7 @@ Every part is available on Arch with Plasma 6.8 (checked on CachyOS, Plasma 6.8.
 - **Lock screen** (`cyberkde on lock-screen`): replaces one file of the `plasma-desktop` package. A Plasma update puts the original back; `cyberkde check` tells you to re-apply. `cyberkde off` checks the file against the pacman database and never puts an older copy over a newer Plasma.
 - If your Plasma style's panel frame can't take the neon line (e.g. CachyOS-Nord-round), the bar uses the Breeze frame, as in the screenshots.
 - Andale Mono (bar clock) is `ttf-ms-fonts` in the AUR; without it a similar font is used.
+- **DATASHARD, Cyber Fence and the island**: `cyberkde check`, `cyberkde files --check` and the island list missing packages by their Arch names (`qt6-multimedia`, `layer-shell-qt`, `libpulse`, `tesseract-data-eng`, `lm_sensors`, `poppler`…) with the `pacman` line to install them.
 
 ### Known issues
 

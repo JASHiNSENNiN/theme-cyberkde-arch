@@ -200,12 +200,13 @@ fi
 # "DATASHARD"; o "cyberkde uninstall" remove. Ser o padrão das pastas é escolha à parte (desligada):
 # cyberkde efeito datashard on.
 if [[ -f $dest/app/arquivos/cyberkde-arquivos.py ]]; then
-  "$dest/scripts/cyberkde" arquivos --lancador || avisos+=("O lançador do DATASHARD não foi criado; abra com: cyberkde arquivos")
+  "$dest/scripts/cyberkde" arquivos --lancador || avisos+=("$(t "O lançador do DATASHARD não foi criado; abra com: cyberkde arquivos" "The DATASHARD launcher was not created; open it with: cyberkde files")")
   if ! falta_ds=$("$dest/scripts/cyberkde" arquivos --checar 2>/dev/null); then
-    avisos+=("O DATASHARD (gerenciador de arquivos) precisa de pacotes que faltam: $falta_ds")
+    avisos+=("$(t "O DATASHARD (gerenciador de arquivos) precisa de pacotes que faltam: $falta_ds" "DATASHARD (the file manager) needs missing packages: $falta_ds")")
   fi
-  opc_ds=$("$dest/scripts/cyberkde" arquivos --checar 2>&1 >/dev/null | sed -n 's/.*sudo apt install //p' | paste -sd' ' -)
-  [[ -z $opc_ds ]] || avisos+=("Opcional para o DATASHARD (miniaturas de vídeo e PDF, 7z): sudo apt install $opc_ds")
+  if command -v pacman >/dev/null && ! command -v apt-get >/dev/null; then inst="sudo pacman -S --needed"; else inst="sudo apt install"; fi
+  opc_ds=$("$dest/scripts/cyberkde" arquivos --checar 2>&1 >/dev/null | sed -nE 's/.*(sudo apt install|sudo pacman -S --needed) //p' | paste -sd' ' -)
+  [[ -z $opc_ds ]] || avisos+=("$(t "Opcional para o DATASHARD (miniaturas de vídeo e PDF, 7z): $inst $opc_ds" "Optional for DATASHARD (video and PDF thumbnails, 7z): $inst $opc_ds")")
 fi
 
 # --- Arquivos do tema -----------------------------------------------------------------------------

@@ -56,8 +56,8 @@ KCM.SimpleKCM {
         }
         QQC2.Label {
             text: pag.podeReal ? t("Desligado, o equalizador é sintético: anima só tocando, sem ler o áudio.", "Off, the equalizer is synthetic: it animates only while playing, without reading audio.")
-                 : pag.motivoReal === "numpy" ? t("Indisponível: falta o numpy (sudo apt install python3-numpy).", "Unavailable: numpy is missing (sudo apt install python3-numpy).")
-                 : t("Indisponível: falta o pw-record (PipeWire) ou o parec (sudo apt install pipewire-bin).", "Unavailable: pw-record (PipeWire) or parec is missing (sudo apt install pipewire-bin).")
+                 : pag.motivoReal === "numpy" ? t("Indisponível: falta o numpy (python3-numpy no Ubuntu, python-numpy no Arch).", "Unavailable: numpy is missing (python3-numpy on Ubuntu, python-numpy on Arch).")
+                 : t("Indisponível: falta o pw-record (PipeWire) ou o parec (pipewire-bin no Ubuntu, pipewire no Arch).", "Unavailable: pw-record (PipeWire) or parec is missing (pipewire-bin on Ubuntu, pipewire on Arch).")
             wrapMode: Text.WordWrap
             Layout.maximumWidth: Kirigami.Units.gridUnit * 20
             opacity: 0.7

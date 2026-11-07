@@ -29,14 +29,20 @@ ilha_deps_faltando() {
     painel_deps_faltando
     compgen -G '/usr/lib/*/qt6/qml/org/kde/layershell/qmldir' >/dev/null ||
       [[ -f /usr/lib/qt6/qml/org/kde/layershell/qmldir ]] || echo qml6-module-org-kde-layershell
-  } | sort -u
+  } | pacotes_distro | sort -u
 }
 # Opcionais: sem eles só some o recurso. pacote<TAB>para quê (PT)<TAB>(EN).
-ilha_opcionais_faltando() {
+ilha_opcionais_faltando() { ilha_opcionais_debian | pacotes_distro; }
+ilha_opcionais_debian() {
   command -v pactl >/dev/null || printf 'pulseaudio-utils\tvolume e espectro\tvolume and spectrum\n'
   command -v tesseract >/dev/null || printf 'tesseract-ocr\tOCR de capturas\tOCR of screenshots\n'
-  compgen -G '/usr/share/tesseract-ocr/*/tessdata/por.traineddata' >/dev/null ||
-    printf 'tesseract-ocr-por\tOCR em português\tOCR in Portuguese\n'
+  if [[ $cyberkde_lang == en* ]]; then
+    compgen -G '/usr/share/tesseract-ocr/*/tessdata/eng.traineddata' >/dev/null || [[ -f /usr/share/tessdata/eng.traineddata ]] ||
+      printf 'tesseract-ocr-eng\tOCR em inglês\tOCR in English\n'
+  else
+    compgen -G '/usr/share/tesseract-ocr/*/tessdata/por.traineddata' >/dev/null || [[ -f /usr/share/tessdata/por.traineddata ]] ||
+      printf 'tesseract-ocr-por\tOCR em português\tOCR in Portuguese\n'
+  fi
   command -v spectacle >/dev/null || printf 'spectacle\tcapturas de tela\tscreenshots\n'
   command -v kdeconnect-cli >/dev/null || printf 'kdeconnect\tcelular\tphone\n'
   command -v sensors >/dev/null || printf 'lm-sensors\ttemperaturas\ttemperatures\n'
@@ -131,7 +137,7 @@ efeito_cmd_ilha() {
     [[ -f $ilha_app ]] || cor_exit 1 "$(t "A ilha não está nesta cópia do tema (app/ilha)." "The island is not in this copy of the theme (app/ilha).")"
     local falta
     falta=$(ilha_deps_faltando | paste -sd' ' -)
-    [[ -z $falta ]] || cor_exit 1 "$(t "A ilha precisa de pacotes que faltam: sudo apt install $falta" "The island needs missing packages: sudo apt install $falta")"
+    [[ -z $falta ]] || cor_exit 1 "$(t "A ilha precisa de pacotes que faltam: $(instalar_cmd) $falta" "The island needs missing packages: $(instalar_cmd) $falta")"
   fi
   if [[ -n $acao ]]; then
     take_lock || cor_exit 3 "$(t "ocupado: outra execução do cyberkde está em andamento" "busy: another cyberkde run is in progress")"

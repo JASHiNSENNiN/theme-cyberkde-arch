@@ -2166,7 +2166,7 @@ if [[ -n ${widgets_f[cerca:1]-} ]]; then
       local cf
       cf=$(arquivos_faltando_cerca | paste -sd' ' -)
       if [[ -n $cf ]]; then
-        widget_avisos_extra+=("$(t "A Cyber Fence precisa de pacotes que faltam: sudo apt install $cf" "Cyber Fence needs missing packages: sudo apt install $cf")")
+        widget_avisos_extra+=("$(t "A Cyber Fence precisa de pacotes que faltam: $(instalar_cmd) $cf" "Cyber Fence needs missing packages: $(instalar_cmd) $cf")")
       fi
     fi
     if (( nova && ! tem_pasta && ! widgets_nova_sem_pasta )); then
@@ -2183,7 +2183,7 @@ if [[ -n ${widgets_f[cerca:1]-} ]]; then
     local m
     for m in Qt/labs/folderlistmodel:qml6-module-qt-labs-folderlistmodel QtQuick/Dialogs:qml6-module-qtquick-dialogs; do
       compgen -G "/usr/lib/*/qt6/qml/${m%%:*}/qmldir" >/dev/null || [[ -f /usr/lib/qt6/qml/${m%%:*}/qmldir ]] || echo "${m#*:}"
-    done
+    done | pacotes_distro
   }
 
   #   cyberkde cerca nova [--titulo T] [--pasta P] [--json]   na tela sob o mouse. Sem título nem pasta: nasce

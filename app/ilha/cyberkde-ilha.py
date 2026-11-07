@@ -27,21 +27,33 @@ def _qml_dir():
     return Path(QLibraryInfo.path(QLibraryInfo.LibraryPath.QmlImportsPath))
 
 
+# Arch and derivatives (pacman, no apt): other package names and install command.
+ARCH = bool(shutil.which("pacman")) and not shutil.which("apt-get")
+INSTALAR = "sudo pacman -S --needed" if ARCH else "sudo apt install"
+_ARCH_PAC = {"qml6-module-org-kde-layershell": "layer-shell-qt", "python3-pyqt6": "python-pyqt6",
+             "pulseaudio-utils": "libpulse", "dbus-bin": "dbus", "tesseract-ocr": "tesseract",
+             "kde-spectacle": "spectacle", "network-manager": "networkmanager"}
+
+
+def pacote(nome):
+    return _ARCH_PAC.get(nome, nome) if ARCH else nome
+
+
 def checar():
     """(obrigatórios que faltam, opcionais que faltam: pacote → para quê)."""
     falta = []
     try:
         q = _qml_dir()
         if not (q / "org/kde/layershell/qmldir").exists():
-            falta.append("qml6-module-org-kde-layershell")
+            falta.append(pacote("qml6-module-org-kde-layershell"))
     except ImportError:
-        falta.append("python3-pyqt6")
+        falta.append(pacote("python3-pyqt6"))
     opc = {}
     for prog, pac, para in (("pactl", "pulseaudio-utils", "volume e espectro"), ("dbus-monitor", "dbus-bin", "anunciar notificações"),
                             ("tesseract", "tesseract-ocr", "ler texto de imagens"), ("spectacle", "kde-spectacle", "capturas e OCR da tela"),
                             ("udisksctl", "udisks2", "ejetar discos"), ("nmcli", "network-manager", "leituras de rede")):
         if not shutil.which(prog):
-            opc[pac] = para
+            opc[pacote(pac)] = para
     return falta, opc
 
 
@@ -79,9 +91,9 @@ def comandos(a):
             print(json.dumps({"faltam": f, "opcionais": o}, ensure_ascii=False))
         else:
             for p, para in o.items():
-                print(f"Opcional ({para}): sudo apt install {p}", file=sys.stderr)
+                print(f"Opcional ({para}): {INSTALAR} {p}", file=sys.stderr)
             if f:
-                print("sudo apt install " + " ".join(f))
+                print(INSTALAR + " " + " ".join(f))
         return 1 if f else 0
     if a.estado:
         r = consultar("Estado")

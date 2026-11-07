@@ -119,7 +119,7 @@ efeito_cmd_datashard() {
       avisos+=("$(t "\"Mostrar na pasta\" passa ao DATASHARD quando o Dolphin em segundo plano sair (no próximo login, ou já, se ele não estiver rodando)." "\"Show in folder\" moves to DATASHARD once the background Dolphin exits (at the next login, or now if it is not running).")")
     fi
     if [[ $acao == on ]] && [[ -n $(arquivos_deps_faltando) ]]; then
-      avisos+=("$(t "O DATASHARD precisa de pacotes que faltam: sudo apt install $(arquivos_deps_faltando | paste -sd' ' -)" "DATASHARD needs missing packages: sudo apt install $(arquivos_deps_faltando | paste -sd' ' -)")")
+      avisos+=("$(t "O DATASHARD precisa de pacotes que faltam: $(instalar_cmd) $(arquivos_deps_faltando | paste -sd' ' -)" "DATASHARD needs missing packages: $(instalar_cmd) $(arquivos_deps_faltando | paste -sd' ' -)")")
     fi
   fi
   local estado

@@ -619,8 +619,8 @@ class Painel(QObject):
             self.datashardMudou.emit()
 
         def fimDeps(codigo, saida, erro):
-            apt = next((l.strip() for l in saida.splitlines() if "apt install" in l), "")
-            opc = [l.strip() for l in erro.splitlines() if "apt install" in l]
+            apt = next((l.strip() for l in saida.splitlines() if "apt install" in l or "pacman -S" in l), "")
+            opc = [l.strip() for l in erro.splitlines() if "apt install" in l or "pacman -S" in l]
             self._datashard = dict(self._datashard, depsOk=codigo == 0, apt=apt if codigo == 1 else "", opcionais=opc)
             self.datashardMudou.emit()
         self._processo(["efeito", "datashard", "--json"], fimEstado)
