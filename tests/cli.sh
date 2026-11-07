@@ -144,6 +144,19 @@ for c in "effect bogus" "on bogus" "corp bogus" "color nothex"; do
   [[ $? == 2 ]] && pass "usage error: $c -> 2" || fail "usage error: $c"
 done
 
+# 5. Boot screen: plymouthd.conf gets Theme=cyberkde under [Daemon] and keeps the other lines.
+(
+  source <(sed -n '/^boot_conf_novo()/,/^}/p' "$root/modules/boot/phase.sh")
+  tmp=$(mktemp)
+  boot_conf=$tmp
+  printf '[Daemon]\nTheme=cachyos-bootanimation\nShowDelay=0\n[Other]\nTheme=x\n' >"$tmp"
+  want=$'[Daemon]\nTheme=cyberkde\nShowDelay=0\n[Other]\nTheme=x'
+  [[ $(boot_conf_novo) == "$want" ]] && pass "boot: Theme replaced in [Daemon] only" || fail "boot: got '$(boot_conf_novo)'"
+  printf '# empty\n' >"$tmp"
+  [[ $(boot_conf_novo) == $'# empty\n[Daemon]\nTheme=cyberkde' ]] && pass "boot: [Daemon] added when missing" || fail "boot: missing section"
+  rm -f -- "$tmp"
+)
+
 echo
 (( fails == 0 )) && echo "all passed" || echo "$fails failed"
 exit $(( fails > 0 ))

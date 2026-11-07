@@ -1,0 +1,123 @@
+// CyberKDE: tela de boot do Plymouth (módulo script). Gerado por gen_boot.py: as imagens já saem
+// nas cores da corporação; aqui só a montagem e a animação (a função de refresh roda a 50 Hz).
+
+Window.SetBackgroundTopColor(@FUNDO_R@, @FUNDO_G@, @FUNDO_B@);
+Window.SetBackgroundBottomColor(@FUNDO_R@, @FUNDO_G@, @FUNDO_B@);
+
+W = Window.GetWidth();
+H = Window.GetHeight();
+
+// Logo: até 34% da largura e 30% da altura da tela, sem ampliar.
+logo_src = Image("logo.png");
+esc = Math.Min(Math.Min(W * 0.34 / logo_src.GetWidth(), H * 0.30 / logo_src.GetHeight()), 1);
+lw = Math.Int(logo_src.GetWidth() * esc);
+lh = Math.Int(logo_src.GetHeight() * esc);
+lx = Math.Int((W - lw) / 2);
+ly = Math.Int((H - lh) / 2);
+
+logo = Sprite(logo_src.Scale(lw, lh));
+logo.SetPosition(lx, ly, 10);
+ghost_a = Sprite(Image("ghost-a.png").Scale(lw, lh));
+ghost_a.SetPosition(lx, ly, 9);
+ghost_a.SetOpacity(0);
+ghost_b = Sprite(Image("ghost-b.png").Scale(lw, lh));
+ghost_b.SetPosition(lx, ly, 8);
+ghost_b.SetOpacity(0);
+
+// Linhas de CRT por cima de tudo e a faixa de luz que desce.
+lines = Sprite(Image("lines.png").Scale(W, 2160));
+lines.SetPosition(0, 0, 50);
+sweep_img = Image("sweep.png").Scale(W, 48);
+sweep = Sprite(sweep_img);
+sweep.SetPosition(0, -48, 40);
+
+// Barra de progresso fina abaixo do logo.
+bw = Math.Int(Math.Max(lw, W * 0.2));
+bx = Math.Int((W - bw) / 2);
+by = Math.Int(ly + lh + H * 0.06);
+track = Sprite(Image("track.png").Scale(bw, 2));
+track.SetPosition(bx, by, 10);
+bar_img = Image("bar.png");
+bar = Sprite(bar_img.Scale(1, 2));
+bar.SetPosition(bx, by, 11);
+bar.SetOpacity(0);
+
+global.tick = 0;
+global.glitch = 0;      // quadros restantes do glitch em curso
+global.next_glitch = 60; // quadro do próximo glitch
+
+fun refresh_callback() {
+  global.tick = global.tick + 1;
+  // Varredura: desce a tela inteira a cada 2,4 s (120 quadros).
+  sweep.SetY(Math.Int((global.tick % 120) / 120 * (H + 48)) - 48);
+
+  if (global.tick >= global.next_glitch) {
+    global.glitch = 4 + Math.Int(Math.Random() * 5);
+    global.next_glitch = global.tick + 70 + Math.Int(Math.Random() * 80);
+  }
+  if (global.glitch > 0) {
+    global.glitch = global.glitch - 1;
+    d = 3 + Math.Int(Math.Random() * 9);
+    j = Math.Int((Math.Random() - 0.5) * 10);
+    ghost_a.SetPosition(lx - d, ly + j / 2, 9);
+    ghost_b.SetPosition(lx + d, ly - j / 2, 8);
+    ghost_a.SetOpacity(0.75);
+    ghost_b.SetOpacity(0.75);
+    logo.SetX(lx + j);
+    logo.SetOpacity(0.7 + Math.Random() * 0.3);
+  } else {
+    ghost_a.SetOpacity(0);
+    ghost_b.SetOpacity(0);
+    logo.SetX(lx);
+    logo.SetOpacity(1);
+  }
+}
+Plymouth.SetRefreshFunction(refresh_callback);
+
+fun progress_callback(duration, progress) {
+  w = Math.Int(bw * progress);
+  if (w < 1) return;
+  bar.SetImage(bar_img.Scale(w, 2));
+  bar.SetOpacity(1);
+}
+Plymouth.SetBootProgressFunction(progress_callback);
+
+// Senha (disco criptografado) e mensagens: texto simples abaixo da barra.
+prompt = Sprite();
+prompt.SetPosition(0, by + 24, 20);
+entry = Sprite();
+entry.SetPosition(0, by + 52, 20);
+message = Sprite();
+message.SetPosition(0, H - 60, 20);
+
+fun center_text(sprite, text) {
+  img = Image.Text(text, 0.9, 0.95, 1.0);
+  sprite.SetImage(img);
+  sprite.SetX(Math.Int((W - img.GetWidth()) / 2));
+  sprite.SetOpacity(1);
+}
+
+fun password_callback(text, bullets) {
+  center_text(prompt, text);
+  stars = "";
+  for (i = 0; i < bullets; i = i + 1) stars = stars + "*";
+  center_text(entry, "> " + stars + "_");
+}
+Plymouth.SetDisplayPasswordFunction(password_callback);
+
+fun question_callback(text, answer) {
+  center_text(prompt, text);
+  center_text(entry, "> " + answer + "_");
+}
+Plymouth.SetDisplayQuestionFunction(question_callback);
+
+fun normal_callback() {
+  prompt.SetOpacity(0);
+  entry.SetOpacity(0);
+}
+Plymouth.SetDisplayNormalFunction(normal_callback);
+
+fun message_callback(text) {
+  center_text(message, text);
+}
+Plymouth.SetMessageFunction(message_callback);

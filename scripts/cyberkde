@@ -318,6 +318,8 @@ avisos_de() {  # fases pendentes... -> uma frase por linha
     case $f in
       login) t "A tela de login continua com o tema anterior: ela fica em /usr e só muda com root. O splash e a tela de bloqueio já foram aplicados." \
         "The login screen keeps the previous theme: it lives in /usr and only changes as root. The splash and the lock screen were already applied."; echo ;;
+      boot) t "A tela de boot continua com o logo anterior: ela fica em /usr e só muda com root." \
+        "The boot screen keeps the previous logo: it lives in /usr and only changes as root."; echo ;;
     esac
   done
 }
@@ -1531,6 +1533,7 @@ destino_de_sistema_do_tema() {  # destino
   case $1 in
     /usr/share/sddm/themes/cyberkde | /usr/share/sddm/themes/cyberkde/* | \
       /etc/sddm.conf.d/zz-cyberkde.conf | /etc/sddm.conf.d/cyberkde.conf | \
+      /usr/share/plymouth/themes/cyberkde | /usr/share/plymouth/themes/cyberkde/* | /etc/plymouth/plymouthd.conf | \
       "$lock/LockScreen.qml" | "$lock/cyberkde" | "$lock/cyberkde/"*) return 0 ;;
   esac
   return 1
