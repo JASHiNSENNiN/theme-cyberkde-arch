@@ -860,7 +860,7 @@ class Painel(QObject):
                          "arquivo": self._arquivoSom(x.get("previaSom"))}
                         for x in v.get("sons") or [] if isinstance(x, dict)]
                 vals.append({"id": str(v["id"]), "nome": self._texto(v, "nome") or str(v["id"]),
-                             "descricao": self._texto(v, "descricao"), "previa": self._url(v.get("previa")),
+                             "descricao": self._texto(v, "descricao"), "previa": self._url(self._texto(v, "previa")),
                              "som": self._arquivoSom(v.get("previaSom")), "sons": [x for x in sons if x["arquivo"]]})
             elif isinstance(v, (str, int)):
                 vid = str(v)
@@ -980,7 +980,7 @@ class Painel(QObject):
         for v in e.get("variantes") or []:
             if isinstance(v, dict) and v.get("id"):
                 variantes.append({"id": str(v["id"]), "nome": self._texto(v, "nome") or v["id"],
-                                  "descricao": self._texto(v, "descricao"), "previa": self._url(v.get("previa")),
+                                  "descricao": self._texto(v, "descricao"), "previa": self._url(self._texto(v, "previa")),
                                   "corp": v.get("corp") or ""})
         variante = str(est.get("variante", e.get("variante")) or "")
         padraoVar = str(est.get("padrao") or "")
@@ -997,7 +997,7 @@ class Painel(QObject):
         r = {
             "id": eid, "grupo": e.get("grupo") or "sistema", "nome": self._texto(e, "nome") or eid,
             "descricao": self._texto(e, "descricao"), "tipo": tipo, "ligado": ligado is True,
-            "previa": self._url(e.get("previa")), "opcoes": opcoes, "variantes": variantes,
+            "previa": self._url(self._texto(e, "previa")), "opcoes": opcoes, "variantes": variantes,
             "variante": variante, "padraoVariante": padraoVar, "definido": est.get("definido") is True,
             "sudo": sudo, "mudado": bool(mudado),
             "disponivel": est.get("disponivel") if isinstance(est.get("disponivel"), bool) else (

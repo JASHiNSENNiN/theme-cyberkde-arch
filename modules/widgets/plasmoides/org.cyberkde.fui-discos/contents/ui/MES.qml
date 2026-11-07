@@ -5,7 +5,7 @@ import "comum"
 Modulo {
     id: m
     property bool logo: true
-    titulo: "E/S"; codigo: d.t("por disco", "per drive")
+    titulo: d.t("E/S", "I/O"); codigo: d.t("por disco", "per drive")
     rodape: d.t("■ leitura  ▨ escrita · 100 % = maior taxa recente", "■ read  ▨ write · 100 % = highest recent rate")
     dica: d.t("Leitura e escrita de cada disco físico agora (disk/<disco>/read e write do ksystemstats). As barras usam a maior taxa recente como 100 %.",
               "Read and write rate of each physical disk right now (ksystemstats disk/<disk>/read and write). Bars use the highest recent rate as 100 %.")
@@ -25,7 +25,7 @@ Modulo {
             Text {
                 id: taxas
                 anchors.right: parent.right
-                text: parent.e ? "L " + m.d.taxa(parent.e.rb) + "  E " + m.d.taxa(parent.e.wb) : ""
+                text: parent.e ? m.d.t("L ", "R ") + m.d.taxa(parent.e.rb) + m.d.t("  E ", "  W ") + m.d.taxa(parent.e.wb) : ""
                 font.family: Cores.fMono; font.pixelSize: m.fr(10); font.weight: Font.Bold; color: Cores.texto
             }
             Rectangle { y: m.u(15); height: Math.max(3, m.u(5)); width: Math.max(1, Math.round(m.wb * (parent.e ? parent.e.r : 0) * Math.min(1, m.montado * 1.3))); color: Cores.texto

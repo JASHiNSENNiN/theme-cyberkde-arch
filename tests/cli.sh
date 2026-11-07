@@ -28,6 +28,13 @@ fail() { printf 'FAIL  %s\n' "$1"; fails=$((fails + 1)); }
   check "efeito icones music=padrao" effect icons music=default
   check "corp nenhuma" corp none
   check "cor padrao --sem-sudo" color default --no-sudo
+  check "cerca snapshot listar" fence snapshot list
+  check "cerca regras aplicar --simular" fence rules apply --simulate
+  check "widgets estado" widgets status
+  check "ilha status" island status
+  check "efeito widget-relogio on --posicao superior-direito --modo medio" effect widget-clock on --position top-right --mode medium
+  check "efeito papel usuario:new.mp4" effect wallpaper user:new.mp4
+  check "arquivos new" files new
   check "on login-bloqueio" on lock-screen
   check "layout lateral --aplicar" layout side --apply
   check "papel /home/u/none.jpg" wallpaper /home/u/none.jpg

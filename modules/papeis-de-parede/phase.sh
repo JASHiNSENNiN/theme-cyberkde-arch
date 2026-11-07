@@ -186,7 +186,7 @@ efeito_cmd_papel-pasta() {
       *) (( mudar )) && erro=1; caminho=$arg; mudar=1 ;;
     esac
   done
-  (( ! erro )) || cor_exit 2 "$(t "uso: cyberkde efeito papel-pasta [--caminho PASTA | --limpar] [--itens] [--json]" "usage: cyberkde efeito papel-pasta [--caminho FOLDER | --clear] [--itens] [--json]")"
+  (( ! erro )) || cor_exit 2 "$(t "uso: cyberkde efeito papel-pasta [--caminho PASTA | --limpar] [--itens] [--json]" "usage: cyberkde effect wallpaper-folder [--path FOLDER | --clear] [--items] [--json]")"
   if (( itens && ! mudar )); then papel_pasta_itens_json >&3; return 0; fi
   local -a avisos=()
   if (( mudar )); then

@@ -9,6 +9,7 @@ DEMO=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 R=$(cd -- "$DEMO/../../.." && pwd)
 TRAB=${1:-$(mktemp -d /tmp/cyberkde-demo.XXXX)}
 DEST=$R/assets/previas/widgets
+SUF_EN=$([[ ${LANG_TESTE:-} == en* ]] && printf %s -en)  # LANG_TESTE=en_US.UTF-8: English previews, <name>-en.webp
 FD=:92
 mkdir -p "$TRAB" || exit 1
 paleta() {
@@ -44,7 +45,7 @@ capturar() {  # ID CORP LARG ALT SAIDA SEGUNDOS [chave=valor...]
   (
     export HOME=$S/h XDG_CONFIG_HOME=$S/h/.config XDG_DATA_HOME=$S/h/.local/share XDG_CACHE_HOME=$S/h/.cache \
       XDG_STATE_HOME=$S/h/.local/state XDG_RUNTIME_DIR=$S/run TMPDIR=$S/tmp TZ=America/Los_Angeles \
-      DISPLAY=$FD QT_QPA_PLATFORM=xcb LANG=${LANG_TESTE:-pt_BR.UTF-8} QML_IMPORT_PATH=$DEMO/qml
+      DISPLAY=$FD QT_QPA_PLATFORM=xcb LANG=${LANG_TESTE:-pt_BR.UTF-8} LC_ALL=${LANG_TESTE:-pt_BR.UTF-8} QML_IMPORT_PATH=$DEMO/qml
     unset XDG_SESSION_ID XDG_SEAT XDG_VTNR WAYLAND_DISPLAY SESSION_MANAGER DBUS_SESSION_BUS_ADDRESS
     P=$XDG_DATA_HOME/plasma/plasmoids
     mkdir -p "$XDG_CONFIG_HOME" "$P" "$XDG_RUNTIME_DIR" "$TMPDIR" "$XDG_DATA_HOME/dbus-1/services" "$XDG_DATA_HOME/fonts"
@@ -56,7 +57,7 @@ capturar() {  # ID CORP LARG ALT SAIDA SEGUNDOS [chave=valor...]
       printf '[D-BUS Service]\nName=%s\nExec=/bin/false\n' "$s" >"$XDG_DATA_HOME/dbus-1/services/$s.service"
     done
     cp "$R"/assets/fonts/*.ttf "$XDG_DATA_HOME/fonts/" 2>/dev/null
-    "$R/modules/widgets/plasmoides/montar.sh" "$P" "$id" >/dev/null || exit 1
+    bash "$R/modules/widgets/plasmoides/montar.sh" "$P" "$id" >/dev/null || exit 1
     [[ -f $P/$id/contents/code/coleta.sh ]] && cp "$DEMO/coleta-demo.sh" "$P/$id/contents/code/coleta.sh"
     [[ -f $P/$id/contents/code/discos.sh ]] && cp "$DEMO/discos-demo.sh" "$P/$id/contents/code/discos.sh"
     [[ $corp == arasaka ]] || paleta "$corp" >"$P/$id/contents/ui/comum/Paleta.qml"
@@ -92,8 +93,8 @@ tira() {  # NOME-DA-PREVIA ID "P" "M" "G" (tamanhos LxA); Arasaka e Militech
       cantos "$TRAB/$nome-$corp-$t.png"; fs+=("$TRAB/$nome-$corp-$t.png")
     done
     suf=$([[ $corp == arasaka ]] || echo "-$corp")
-    magick -background '#0E0E17' "${fs[@]}" -bordercolor '#0E0E17' -border 12 -gravity north +append -border 4 -quality 92 "$DEST/$nome$suf.webp"
-    echo "$nome$suf.webp"
+    magick -background '#0E0E17' "${fs[@]}" -bordercolor '#0E0E17' -border 12 -gravity north +append -border 4 -quality 92 "$DEST/$nome$suf$SUF_EN.webp"
+    echo "$nome$suf$SUF_EN.webp"
   done
 }
 tira painelfui org.cyberkde.painelfui 240x96 776x656 960x816
@@ -101,8 +102,8 @@ tira discos org.cyberkde.discos 240x96 324x270 378x504
 tira desempenho org.cyberkde.desempenho 236x96 324x252 378x432
 for mid in cpu nucleos sensores memoria gpu discos es rede trafego processos log sistema hora clima estados; do
   capturar "org.cyberkde.fui-$mid" arasaka 500 300 "$TRAB/fui-$mid.png" 9 modo=grande opacidade=100
-  magick "$TRAB/fui-$mid.png" -bordercolor '#0E0E17' -border 8 -quality 92 "$DEST/fui-$mid.webp"
-  echo "fui-$mid.webp"
+  magick "$TRAB/fui-$mid.png" -bordercolor '#0E0E17' -border 8 -quality 92 "$DEST/fui-$mid$SUF_EN.webp"
+  echo "fui-$mid$SUF_EN.webp"
 done
 pkill -u "$USER" -f "^Xvfb $FD" 2>/dev/null
 echo "pronto: $TRAB"

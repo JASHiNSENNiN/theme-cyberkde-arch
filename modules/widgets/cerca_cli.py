@@ -38,6 +38,12 @@ CONFLITOS = ("renomear", "pular", "sobrescrever")
 # Download pela metade e temporários nunca entram numa regra.
 TEMPORARIOS = (".part", ".crdownload", ".tmp", ".download", ".kate-swp", ".swp", "~")
 NOME_SNAP = re.compile(r"^[^\W_][\w .-]{0,59}$")
+# Message language: the CLI passes its own (--lang, or the session language) in CYBERKDE_LANG.
+EN = (os.environ.get("CYBERKDE_LANG") or "").startswith("en")
+
+
+def t(pt, en):
+    return en if EN else pt
 
 
 def erro(msg, codigo=2):
@@ -81,7 +87,7 @@ def trava():
     try:
         fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
-        erro("ocupado: outra organização está em andamento", 3)
+        erro(t("ocupado: outra organização está em andamento", "busy: another sort is in progress"), 3)
     return f
 
 
@@ -93,7 +99,7 @@ def args_opcoes(args, com_valor):
         a = args[i]
         if a.startswith("--") and a[2:] in com_valor:
             if i + 1 >= len(args):
-                erro("falta o valor de " + a)
+                erro(t("falta o valor de ", "missing value for ") + a)
             op[a[2:]] = args[i + 1]
             i += 2
         elif a.startswith("--"):
@@ -143,16 +149,16 @@ def normaliza_regra(op, r=None):
         try:
             r["prioridade"] = int(op["prioridade"])
         except (TypeError, ValueError):
-            erro("prioridade: um número inteiro")
+            erro(t("prioridade: um número inteiro", "priority: a whole number"))
     if "conflito" in op:
         r["conflito"] = str(op["conflito"])
     if "esperar" in op:
         if op["esperar"] not in ("on", "off"):
-            erro("--esperar: on ou off")
+            erro(t("--esperar: on ou off", "--esperar: on or off"))
         r["esperarDestravar"] = op["esperar"] == "on"
     if "criar-cerca" in op:
         if op["criar-cerca"] not in ("on", "off"):
-            erro("--criar-cerca: on ou off")
+            erro(t("--criar-cerca: on ou off", "--criar-cerca: on or off"))
         r["autoCriarCerca"] = op["criar-cerca"] == "on"
     r.setdefault("autoCriarCerca", False)
     r.setdefault("ultimaExecucao", None)
@@ -164,13 +170,13 @@ def normaliza_regra(op, r=None):
     r.setdefault("conflito", "renomear")
     r["esperarDestravar"] = not op.get("sem-esperar") if "sem-esperar" in op else r.get("esperarDestravar", True)
     if r["conflito"] not in CONFLITOS:
-        erro("conflito: renomear, pular ou sobrescrever")
+        erro(t("conflito: renomear, pular ou sobrescrever", "conflict: renomear (rename), pular (skip) or sobrescrever (overwrite)"))
     if not r.get("extensoes") and not r.get("nomeContem"):
-        erro("a regra precisa de --extensoes ou --contem")
+        erro(t("a regra precisa de --extensoes ou --contem", "the rule needs --extensoes or --contem"))
     if not r.get("destino"):
-        erro("a regra precisa de --destino")
+        erro(t("a regra precisa de --destino", "the rule needs --destino"))
     if not str(r["destino"]).startswith("cerca:") and not caminho(r["destino"]):
-        erro("destino: caminho absoluto, ~/... ou cerca:<id>")
+        erro(t("destino: caminho absoluto, ~/... ou cerca:<id>", "destination: absolute path, ~/... or cerca:<id>"))
     return r
 
 
@@ -242,9 +248,9 @@ def aplicar(args):
     simular = bool(op.get("simular"))
     origem = caminho(op.get("origem", "")) or origem_padrao()
     if "origem" in op and not caminho(op["origem"]):
-        erro("--origem: caminho absoluto ou ~/...")
+        erro(t("--origem: caminho absoluto ou ~/...", "--origem: absolute path or ~/..."))
     if not os.path.isdir(origem):
-        erro("pasta de origem não encontrada: " + origem)
+        erro(t("pasta de origem não encontrada: ", "source folder not found: ") + origem)
     trava_f = None if simular else trava()
     regras = sorted((r for r in regras_ler() if r.get("ativa", True)), key=lambda r: r.get("prioridade", 100))
     lote = agora() + "-%d" % os.getpid()
@@ -331,9 +337,9 @@ def aplicar(args):
         return
     r = {"simulado": simular, "lote": None if simular or not movidos else lote, "origem": origem,
          "movidos": movidos, "pulados": pulados, "semRegra": sem_regra}
-    linhas = ["%s %s -> %s" % ("simular:" if simular else "movido:", os.path.basename(m["arquivo"]), m["destino"]) for m in movidos]
-    linhas += ["pulado: %s (%s)" % (os.path.basename(p["arquivo"]), p["motivo"]) for p in pulados]
-    saida(r, "\n".join(linhas) or "Nada a organizar.")
+    linhas = ["%s %s -> %s" % (t("simular:", "dry run:") if simular else t("movido:", "moved:"), os.path.basename(m["arquivo"]), m["destino"]) for m in movidos]
+    linhas += [t("pulado: %s (%s)", "skipped: %s (%s)") % (os.path.basename(p["arquivo"]), p["motivo"]) for p in pulados]
+    saida(r, "\n".join(linhas) or t("Nada a organizar.", "Nothing to sort."))
 
 
 def historico():
@@ -365,10 +371,10 @@ def desfazer(args):
     linhas = historico()
     por_lote = lotes(linhas)
     if not por_lote:
-        erro("nada a desfazer")
+        erro(t("nada a desfazer", "nothing to undo"))
     lote = pos[0] if pos else list(por_lote)[-1]
     if lote not in por_lote:
-        erro("lote desconhecido: " + lote)
+        erro(t("lote desconhecido: ", "unknown batch: ") + lote)
     devolvidos, conflitos = 0, []
     for l in reversed(por_lote[lote]):
         if not os.path.lexists(l["destino"]):
@@ -397,7 +403,7 @@ def desfazer(args):
         os.rmdir(pg)
     del t
     saida({"lote": lote, "devolvidos": devolvidos, "conflitos": conflitos},
-          "%d arquivo(s) devolvido(s).%s" % (devolvidos, " %d com conflito." % len(conflitos) if conflitos else ""))
+          t("%d arquivo(s) devolvido(s).%s", "%d file(s) put back.%s") % (devolvidos, t(" %d com conflito.", " %d with a conflict.") % len(conflitos) if conflitos else ""))
 
 
 AJUDA = """cyberkde cerca regras                      lista as regras
@@ -408,6 +414,15 @@ AJUDA = """cyberkde cerca regras                      lista as regras
   desfazer [lote] · historico
 Destino: caminho, ~/... ou cerca:<id>. Menor prioridade vem antes; vale a primeira que casar.
 Para vigiar a Área de trabalho: cyberkde efeito widget-cerca --vigiar on (--simular antes é uma boa)."""
+
+AJUDA_EN = """cyberkde fence rules                       list the rules
+  add --destination D [--extensions a,b] [--contains T] [--name N] [--priority P]
+      [--conflict rename|skip|overwrite] [--create-fence on|off] [--wait on|off]
+  edit <id> (same options) · remove <id> · enable <id> · disable <id>
+  apply [--simulate] [--source P]            one-off sort (default: the Desktop)
+  undo [batch] · history
+Destination: a path, ~/... or cerca:<id>. Lower priority runs first; the first rule that matches wins.
+To watch the Desktop: cyberkde effect widget-fence --watch on (try --simulate first)."""
 
 
 def cmd_regras(args):
@@ -421,20 +436,20 @@ def cmd_regras(args):
         saida({"regras": sorted(rs, key=lambda r: r.get("prioridade", 100))},
               "\n".join("%s %s [%s] %s -> %s" % (r["id"], "●" if r.get("ativa", True) else "○", r.get("prioridade"),
                                                  ",".join(r.get("extensoes", [])) or r.get("nomeContem"), r.get("destino"))
-                        for r in sorted(rs, key=lambda r: r.get("prioridade", 100))) or "Nenhuma regra.")
+                        for r in sorted(rs, key=lambda r: r.get("prioridade", 100))) or t("Nenhuma regra.", "No rules."))
     elif sub == "ajuda":
-        print(AJUDA)
+        print(t(AJUDA, AJUDA_EN))
     elif sub == "adicionar":
         op, _ = args_opcoes(args, com_valor)
         r = normaliza_regra(op)
         n = 1 + max([int(x["id"][1:]) for x in rs if re.match(r"^r\d+$", str(x.get("id")))] or [0])
         r["id"] = "r%d" % n
         regras_gravar(rs + [r])
-        saida({"regra": r}, "Regra %s criada." % r["id"])
+        saida({"regra": r}, t("Regra %s criada.", "Rule %s created.") % r["id"])
     elif sub in ("editar", "remover", "ativar", "desativar"):
         op, pos = args_opcoes(args, com_valor)
         if not pos or not any(x.get("id") == pos[0] for x in rs):
-            erro("regra desconhecida: %s" % (pos[0] if pos else ""))
+            erro(t("regra desconhecida: %s", "unknown rule: %s") % (pos[0] if pos else ""))
         if sub == "remover":
             rs = [x for x in rs if x["id"] != pos[0]]
         else:
@@ -445,7 +460,7 @@ def cmd_regras(args):
                         x["ativa"] = sub == "ativar"
                     rs[i] = x
         regras_gravar(rs)
-        saida({"regras": rs}, "Regra %s: %s." % (pos[0], sub))
+        saida({"regras": rs}, t("Regra %s: %s.", "Rule %s: %s.") % (pos[0], sub))
     elif sub == "aplicar":
         aplicar(args)
     elif sub == "desfazer":
@@ -453,9 +468,9 @@ def cmd_regras(args):
     elif sub == "historico":
         por = lotes(historico())
         saida({"lotes": [{"lote": k, "quando": v[0]["quando"], "arquivos": len(v)} for k, v in por.items()]},
-              "\n".join("%s %d arquivo(s)" % (k, len(v)) for k, v in por.items()) or "Nada no histórico.")
+              "\n".join(t("%s %d arquivo(s)", "%s %d file(s)") % (k, len(v)) for k, v in por.items()) or t("Nada no histórico.", "Nothing in the history."))
     else:
-        erro("subcomando desconhecido: %s\n%s" % (sub, AJUDA))
+        erro(t("subcomando desconhecido: %s\n%s", "unknown subcommand: %s\n%s") % (sub, t(AJUDA, AJUDA_EN)))
 
 
 # ------------------------------------------------------------------ snapshots
@@ -481,7 +496,7 @@ def chave_id(k):
 
 def nome_valido(n):
     if not NOME_SNAP.match(n or ""):
-        erro("nome inválido: use letras, números, espaço, ponto, hífen e sublinhado (até 60)")
+        erro(t("nome inválido: use letras, números, espaço, ponto, hífen e sublinhado (até 60)", "invalid name: use letters, digits, space, dot, hyphen and underscore (up to 60)"))
     return n
 
 
@@ -510,7 +525,7 @@ def cmd_snap_gravar(args):
     s = retrato(json.load(sys.stdin), reg_arq, nome, resolucao)
     gravar_json(arq, s)
     saida({"snapshot": nome, "cercas": len(s["cercas"]), "resolucao": resolucao},
-          "Snapshot '%s': %d cerca(s)." % (nome, len(s["cercas"])))
+          t("Snapshot '%s': %d cerca(s).", "Snapshot '%s': %d fence(s).") % (nome, len(s["cercas"])))
 
 
 def snaps():
@@ -528,15 +543,15 @@ def snaps():
 
 def cmd_snap_listar():
     r = snaps()
-    saida({"snapshots": r}, "\n".join("%s  %s  %s  %d cerca(s)" % (s["nome"], s["criado"], s["resolucao"], s["cercas"]) for s in r) or "Nenhum snapshot.")
+    saida({"snapshots": r}, "\n".join(t("%s  %s  %s  %d cerca(s)", "%s  %s  %s  %d fence(s)") % (s["nome"], s["criado"], s["resolucao"], s["cercas"]) for s in r) or t("Nenhum snapshot.", "No snapshots."))
 
 
 def cmd_snap_apagar(args):
     arq = snap_arq(args[0] if args else "")
     if not os.path.isfile(arq):
-        erro("snapshot desconhecido: %s" % args[0])
+        erro(t("snapshot desconhecido: %s", "unknown snapshot: %s") % args[0])
     os.remove(arq)
-    saida({"apagado": args[0]}, "Snapshot apagado.")
+    saida({"apagado": args[0]}, t("Snapshot apagado.", "Snapshot deleted."))
 
 
 def cmd_snap_por_resolucao(args):
@@ -552,12 +567,12 @@ def cmd_snap_plano(args):
     nome, reg_arq = args[0], args[1]
     s = ler_json(snap_arq(nome), None)
     if not isinstance(s, dict):
-        erro("snapshot desconhecido: %s" % nome)
+        erro(t("snapshot desconhecido: %s", "unknown snapshot: %s") % nome)
     atual = json.load(sys.stdin)
     reg = registro(reg_arq)
     por_tela = {t["tela"]: t for t in atual.get("telas", [])}
     if not por_tela:
-        erro("nenhuma área de trabalho", 1)
+        erro(t("nenhuma área de trabalho", "no desktop"), 1)
     primeira = atual["telas"][0]
     vivos = {str(c["applet"]): c for c in atual.get("cercas", [])}
     chave_ap = {k: a for a, k in reg.items()}
@@ -633,17 +648,17 @@ def cmd_exportar(args):
     with open(arq, "w", encoding="utf-8") as f:
         json.dump(pacote(atual), f, ensure_ascii=False, indent=1)
     saida({"arquivo": arq, "cercas": len(atual["cercas"]), "regras": len(regras_ler()), "snapshots": len(snaps())},
-          "Exportado em %s." % arq)
+          t("Exportado em %s.", "Exported to %s.") % arq)
 
 
 def cmd_importar(args):
     p = ler_json(args[0], None)
     if not isinstance(p, dict) or p.get("formato") != "cyberkde-cercas" or not isinstance(p.get("regras"), list):
-        erro("arquivo que não é um pacote de cercas: %s" % args[0])
+        erro(t("arquivo que não é um pacote de cercas: %s", "not a fence package: %s") % args[0])
     limpas = []
     for r in p["regras"]:
         if not isinstance(r, dict) or not re.match(r"^r\d+$", str(r.get("id"))):
-            erro("regra inválida no pacote")
+            erro(t("regra inválida no pacote", "invalid rule in the package"))
         limpas.append(dict(normaliza_regra({}, r), id=r["id"]))
     snaps_novos = p.get("snapshots") or {}
     for nome in snaps_novos:  # tudo validado antes de gravar qualquer coisa
@@ -666,7 +681,7 @@ def cmd_importar(args):
         atual = "importado-" + agora()
         gravar_json(snap_arq(atual), dict(p["atual"], nome=atual))
     saida({"regras": len(limpas), "snapshots": importados, "atual": atual},
-          "Importado: %d regra(s), %d snapshot(s)." % (len(limpas), len(importados)))
+          t("Importado: %d regra(s), %d snapshot(s).", "Imported: %d rule(s), %d snapshot(s).") % (len(limpas), len(importados)))
 
 
 def cmd_estado():
@@ -706,7 +721,7 @@ def main():
     elif c == "estado":
         cmd_estado()
     else:
-        erro("comando desconhecido: " + c)
+        erro(t("comando desconhecido: ", "unknown command: ") + c)
 
 
 if __name__ == "__main__":

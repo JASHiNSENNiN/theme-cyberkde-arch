@@ -65,7 +65,7 @@ ilha_parar() {  # pede para sair e espera a saída (até ~2 s); fora do ar, nada
 phase_ilha() {
   [[ $(ilha_pref) == true ]] || return 0
   if [[ ! -f $ilha_app ]]; then
-    echo "Ilha: o app não está nesta cópia do tema (app/ilha)." >&2
+    echo "$(t "Ilha: o app não está nesta cópia do tema (app/ilha)." "Island: the app is not in this copy of the theme (app/ilha).")" >&2
     return 0
   fi
   put_file "$ilha_autostart" <<EOF
@@ -82,7 +82,7 @@ EOF
   if [[ -z $(ilha_deps_faltando) ]]; then ilha_subir; fi
 }
 # O registro já devolveu o autostart.
-off_ilha() { ilha_parar || echo "Ilha: o app não saiu; ele fecha no próximo login." >&2; }
+off_ilha() { ilha_parar || echo "$(t "Ilha: o app não saiu; ele fecha no próximo login." "Island: the app did not quit; it closes at the next login.")" >&2; }
 
 ilha_estado() {
   printf '{"ligado":%s,"escolhido":%s,"rodando":%s,"autostart":%s,"disponivel":%s}' \
@@ -131,7 +131,7 @@ efeito_cmd_ilha() {
       *) acao=invalida ;;
     esac
   done
-  [[ $acao != invalida ]] || cor_exit 2 "$(t "uso: cyberkde efeito ilha [on|off] [--json]" "usage: cyberkde efeito ilha [on|off] [--json]")"
+  [[ $acao != invalida ]] || cor_exit 2 "$(t "uso: cyberkde efeito ilha [on|off] [--json]" "usage: cyberkde effect ilha [on|off] [--json]")"
   local -a avisos=()
   if [[ $acao == on ]]; then
     [[ -f $ilha_app ]] || cor_exit 1 "$(t "A ilha não está nesta cópia do tema (app/ilha)." "The island is not in this copy of the theme (app/ilha).")"
@@ -175,6 +175,6 @@ cmd_ilha() {
   case ${sub:-status} in
     on | off) efeito_cmd_ilha "$sub" ;;
     status) ilha_status_json >&3; echo >&3 ;;
-    *) cor_exit 2 "$(t "uso: cyberkde ilha on|off|status [--json]" "usage: cyberkde ilha on|off|status [--json]")" ;;
+    *) cor_exit 2 "$(t "uso: cyberkde ilha on|off|status [--json]" "usage: cyberkde island on|off|status [--json]")" ;;
   esac
 }

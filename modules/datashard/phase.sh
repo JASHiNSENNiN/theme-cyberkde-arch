@@ -33,7 +33,7 @@ datashard_servico="$data/dbus-1/services"
 phase_datashard() {
   [[ $(datashard_pref) == true ]] || return 0
   if [[ ! -f $project/app/arquivos/cyberkde-arquivos.py ]]; then
-    echo "DATASHARD: o app não está nesta cópia do tema (app/arquivos); o Dolphin continua o padrão." >&2
+    echo "$(t "DATASHARD: o app não está nesta cópia do tema (app/arquivos); o Dolphin continua o padrão." "DATASHARD: the app is not in this copy of the theme (app/arquivos); Dolphin stays the default.")" >&2
     return 0
   fi
   arquivos_lancador  # sem o lançador (cópia de desenvolvimento), o padrão apontaria para o nada
@@ -93,7 +93,7 @@ efeito_cmd_datashard() {
       *) acao=invalida ;;
     esac
   done
-  [[ $acao != invalida ]] || cor_exit 2 "$(t "uso: cyberkde efeito datashard [on|off] [--json]" "usage: cyberkde efeito datashard [on|off] [--json]")"
+  [[ $acao != invalida ]] || cor_exit 2 "$(t "uso: cyberkde efeito datashard [on|off] [--json]" "usage: cyberkde effect datashard [on|off] [--json]")"
   local -a avisos=()
   if [[ -n $acao ]]; then
     take_lock || cor_exit 3 "$(t "ocupado: outra execução do cyberkde está em andamento" "busy: another cyberkde run is in progress")"

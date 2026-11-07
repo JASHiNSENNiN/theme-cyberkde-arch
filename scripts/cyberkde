@@ -230,6 +230,7 @@ t() { if [[ $cyberkde_lang == en* ]]; then printf '%s' "$2"; else printf '%s' "$
 declare -A cli_en_cmd=(
   [panel]=painel [effect]=efeito [phases]=fases [check]=checar [animated]=animados
   [wallpaper]=papel [color]=cor [original]=padrao
+  [files]=arquivos [island]=ilha [fence]=cerca [edit]=edicao
 )
 declare -A cli_en_flag=(
   [--list]=--lista [--available]=--disponivel [--check]=--checar [--apply]=--aplicar
@@ -241,6 +242,15 @@ declare -A cli_en_flag=(
   [--success]=--sucesso [--names]=--nomes [--entrance]=--entrada [--panel]=--painel
   [--background]=--fundo [--variant]=--variante [--density]=--densidade [--direction]=--direcao
   [--vignette]=--vinheta [--curvature]=--curvatura [--interval]=--intervalo [--data]=--dados
+  # wallpaper (FUI and your folder), widgets, Cyber Fence
+  [--speed]=--velocidade [--logo-color]=--cor-logo [--texts]=--textos [--pause]=--pausar [--path]=--caminho
+  [--screen]=--tela [--position]=--posicao [--mode]=--modo [--opacity]=--opacidade [--instance]=--instancia
+  [--dashboard-only]=--so-painel [--city]=--cidade [--style]=--estilo [--format]=--formato
+  [--threshold]=--limiar [--title]=--titulo [--folder]=--pasta [--simulate]=--simular [--watch]=--vigiar
+  [--destination]=--destino [--extensions]=--extensoes [--contains]=--contem [--name]=--nome
+  [--priority]=--prioridade [--conflict]=--conflito [--create-fence]=--criar-cerca [--wait]=--esperar
+  [--source]=--origem [--clear]=--limpar [--items]=--itens
+  [--shortcuts]=--atalhos [--animation]=--animacao [--icon-animation]=--animacao-icones [--by-resolution]=--por-resolucao
 )
 declare -A cli_en_val=(
   # parts (on/off <part>)
@@ -275,6 +285,26 @@ declare -A cli_en_val=(
   [plain]=lisa [filled]=cheio [partial]=parcial [outline]=contorno [corner-bracket]=cantoneira
   [mixed]=misto [ring]=anel [thick]=grosso [technical]=tecnico [stripe]=faixa [box]=caixa
   [alert]=alerta [red]=vermelho
+  # wallpaper folder, app icons, widgets
+  [wallpaper-folder]=papel-pasta [tinted]=tingido [app-icons]=icones-apps [brand]=marca
+  [recolored]=recolorido [silhouette]=silhueta [free]=livre [small]=pequeno [medium]=medio [large]=grande
+  [main]=principal [all]=todas [top-right]=superior-direito [bottom-right]=inferior-direito
+  [top-left]=superior-esquerdo [bottom-left]=inferior-esquerdo [new]=nova [remove]=remover
+  [widget-clock]=widget-relogio [widget-weather]=widget-clima [widget-notes]=widget-notas
+  [widget-media]=widget-midia [widget-network]=widget-rede [widget-drives]=widget-discos
+  [widget-performance]=widget-desempenho [widget-exchange]=widget-cambio [widget-news]=widget-rss
+  [widget-gigs]=widget-tarefas [widget-fence]=widget-cerca [widget-fui-dashboard]=widget-painelfui
+  [widget-fui-time]=widget-fui-hora [widget-fui-weather]=widget-fui-clima [widget-fui-drives]=widget-fui-discos
+  [widget-fui-io]=widget-fui-es [widget-fui-status]=widget-fui-estados [widget-fui-memory]=widget-fui-memoria
+  [widget-fui-cores]=widget-fui-nucleos [widget-fui-processes]=widget-fui-processos
+  [widget-fui-network]=widget-fui-rede [widget-fui-sensors]=widget-fui-sensores
+  [widget-fui-system]=widget-fui-sistema [widget-fui-traffic]=widget-fui-trafego
+  # widgets, island, edit mode and Cyber Fence subcommands
+  [toggle]=alternar [show]=mostrar [hide]=ocultar [gesture]=gesto [together]=junto [animation]=animacao
+  [fences]=cercas [ask]=pedir [rules]=regras [help]=ajuda [save]=salvar [restore]=restaurar
+  [delete]=apagar [export]=exportar [import]=importar [add]=adicionar [enable]=ativar
+  [disable]=desativar [apply]=aplicar [undo]=desfazer [history]=historico
+  [rename]=renomear [skip]=pular [overwrite]=sobrescrever
 )
 cli_en_para_pt() {  # args... -> cli_args (array)
   local a k v livre=0
@@ -282,7 +312,7 @@ cli_en_para_pt() {  # args... -> cli_args (array)
   if (( $# )); then if [[ -n $1 ]]; then cli_args+=("${cli_en_cmd[$1]:-$1}"); else cli_args+=(""); fi; shift; fi
   # Commands whose arguments are free text (image path, color, corporation id, app name): only
   # their own English keywords are translated, never other words.
-  case ${cli_args[0]:-} in papel | cor | corp | padrao) livre=1 ;; esac
+  case ${cli_args[0]:-} in papel | cor | corp | padrao | arquivos) livre=1 ;; esac
   for a in "$@"; do
     if [[ -z $a ]]; then cli_args+=("")
     elif (( livre )) && [[ $a != --* ]]; then
@@ -296,6 +326,15 @@ cli_en_para_pt() {  # args... -> cli_args (array)
       cli_args+=("$k=$( [[ -n $v ]] && echo "${cli_en_val[$v]:-$v}" )")
     else cli_args+=("${cli_en_val[$a]:-$a}"); fi
   done
+  # "user:<file>" picks an item of your wallpaper folder.
+  local j
+  for (( j = 1; j < ${#cli_args[@]}; j++ )); do
+    [[ ${cli_args[j]} != user:?* ]] || cli_args[j]=usuario:${cli_args[j]#user:}
+  done
+  case ${cli_args[0]:-} in
+    widgets) [[ ${cli_args[1]:-} != status ]] || cli_args[1]=estado ;;
+    cerca) [[ ${cli_args[1]:-} != snapshot || ${cli_args[2]:-} != lista ]] || cli_args[2]=listar ;;
+  esac
   # Same English word, different Portuguese gender per effect.
   if [[ ${cli_args[0]:-} == efeito && ${#cli_args[@]} -gt 2 ]]; then
     local i pre val
@@ -3652,7 +3691,7 @@ cmd_edicao() {
     esac
   done
   if (( cor_json )); then exec 3>&1 1>&2; else exec 3>&1; fi
-  [[ $acao != invalida ]] || cor_exit 2 "uso: cyberkde edicao [on|off|alternar] [--json]"
+  [[ $acao != invalida ]] || cor_exit 2 "$(t "uso: cyberkde edicao [on|off|alternar] [--json]" "usage: cyberkde edit [on|off|toggle] [--json]")"
   if [[ -n $acao ]]; then
     qdbus6 org.kde.plasmashell /PlasmaShell >/dev/null 2>&1 \
       || cor_exit 1 "$(t "O plasmashell não respondeu: o modo de edição não mudou." "plasmashell did not respond: edit mode did not change.")"
@@ -3749,7 +3788,7 @@ cmd_checar() {
     il_opc=$(ilha_opcionais_faltando | cut -f1 | paste -sd' ' -)
     if [[ -n $il_falta ]]; then
       item aviso "Faltam pacotes da ilha dinâmica (cyberkde ilha): $il_falta. O tema funciona sem ela." \
-        "Missing packages for the dynamic island (cyberkde ilha): $il_falta. The theme works without it." \
+        "Missing packages for the dynamic island (cyberkde island): $il_falta. The theme works without it." \
         "$(instalar_cmd) $il_falta"
     fi
     if [[ -n $il_opc ]]; then
@@ -3762,7 +3801,7 @@ cmd_checar() {
     local cf
     cf=$(arquivos_faltando_cerca | paste -sd' ' -)
     item aviso "Faltam pacotes da Cyber Fence (widget-cerca): $cf. Sem eles, ela não abre." \
-      "Cyber Fence packages are missing (widget-cerca): $cf. It does not load without them." \
+      "Cyber Fence packages are missing (widget-fence): $cf. It does not load without them." \
       "$(instalar_cmd) $cf"
   fi
   if [[ -f $arquivos_app ]]; then
@@ -3771,7 +3810,7 @@ cmd_checar() {
     ds_opc=$(arquivos_opcionais_faltando | cut -f1 | paste -sd' ' -)
     if [[ -n $ds_falta ]]; then
       item aviso "Faltam pacotes do DATASHARD (cyberkde arquivos): $ds_falta. O tema funciona sem ele." \
-        "Missing packages for DATASHARD (cyberkde arquivos): $ds_falta. The theme works without it." \
+        "Missing packages for DATASHARD (cyberkde files): $ds_falta. The theme works without it." \
         "$(instalar_cmd) $ds_falta"
     fi
     if [[ -n $ds_opc ]]; then
@@ -4303,7 +4342,8 @@ cyberkde: turn the CyberKDE theme on and off, part by part.
   cyberkde on [part] [--no-sudo] [--json] [--progress]
                        turn everything on, or one part: dolphin, apps, windows, animated-dolphin,
                        icons, konsole, konsole-anim, system-icons, kwin-extras, login, wallpapers,
-                       plasma, bar-and-dock; optional (not in "on"): cursor, sound, lock-screen
+                       plasma, bar-and-dock, widgets; optional (not in "on"): cursor, sound,
+                       lock-screen, datashard
   cyberkde off [part] [--no-sudo] [--json] [--progress]
                        restore every original value (or only one part)
   cyberkde status [--json]   what is on, and whether the animations loaded
@@ -4327,8 +4367,15 @@ cyberkde: turn the CyberKDE theme on and off, part by part.
     style-preset --variant <neo-military|dense-military|clean-netwatch|arasaka-luxury|
                             worn-terminal|neon-kitsch|reading>
     style-* --variant V                  one interface setting (effect --list shows the values)
-    cursor <default|neon|minimal|crosshair>   sound <default|subtle>
-    wallpaper <a|b|c|d|corp|default>     menu <default|list|grid|fullscreen>
+    cursor <default|neon|minimal|crosshair|off>   sound <default|subtle|off>
+    wallpaper <a|b|c|d|corp|fui|default|user:FILE>   menu <default|list|grid|fullscreen>
+    wallpaper fui [--intensity 30..200] [--speed 25..300] [--fps 30|60] [--logo on|off] ...
+    wallpaper-folder [--path FOLDER | --clear]   your own images and videos for user:FILE
+    app-icons <brand|recolored|silhouette>     app icons: brand logo, recolored or silhouette
+    widget-<name> [on|off] [--position top-right|...] [--mode small|medium|large] [--opacity N]
+            names: clock weather notes media network drives performance exchange news gigs
+                   fence docker fui-dashboard fui-<module>; widget-layout fui|free
+    datashard on|off   DATASHARD as the default file manager     ilha on|off   the dynamic island
     splash <full|short|none>             login [--entrance E] [--panel left|center] [--success on|off]
     dock [--indicator line|dot] [--zoom on|off] [--launch on|off]
     desktops <off|4|6> [--names cyber|simple]   modal-dim on|off   click on|off
@@ -4336,11 +4383,19 @@ cyberkde: turn the CyberKDE theme on and off, part by part.
   cyberkde latte          install Latte Dock NG (Ubuntu 26.04 package, or the Arch PKGBUILD)
   cyberkde animated       Dolphin and Konsole with the theme animations (package or local build)
   cyberkde original [app] open an app with its original look, to compare
+  cyberkde files [folder] open DATASHARD, the theme's file manager (--check: only check its packages)
+  cyberkde island on|off|status [--json]   the dynamic island (off by default)
+  cyberkde widgets hide|show|toggle|status [--json]   hide and show every theme widget
+                       (also: gesture on|off, together on|off, animation <id>|fences)
+  cyberkde fence new|toggle|show|hide [--json]   new fence on the mouse's screen; show or hide them all
+  cyberkde fence peek [on|off|toggle]       fences above the windows
+  cyberkde fence rules|snapshot|backup|export|import   sorting, layouts and copies of the fences
+  cyberkde edit [on|off|toggle] [--json]    Plasma edit mode (move and resize widgets)
   cyberkde install        only install/update the theme files
   cyberkde uninstall      turn off and remove everything
   --lang en|pt            message language (default: your session language)
 
-Portuguese names (painel, efeito, checar, animados...) keep working.
+Portuguese names (painel, efeito, checar, animados, arquivos, ilha, cerca...) keep working.
 HELP
 }
 

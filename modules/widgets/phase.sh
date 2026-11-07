@@ -721,7 +721,7 @@ widget_aplicar() {  # efeito [refazer|ligar]
       (( achou )) || interno=1
       if (( ! interno )) && [[ ${2:-} != ligar ]]; then
         kwriteconfig6 --file "$efeitos_file" --group "widget-$efeito" --key ligado false
-        echo "  (widget $efeito removido à mão: fica desligado)" >&2
+        echo "$(t "  (widget $efeito removido à mão: fica desligado)" "  (widget $efeito removed by hand: it stays off)")" >&2
         return 0
       fi
       registrados=""
@@ -731,7 +731,7 @@ widget_aplicar() {  # efeito [refazer|ligar]
   if [[ ${2:-} == refazer && -n $registrados ]]; then widgets_remover "$efeito"; registrados=""; fi
   if [[ -z $registrados ]]; then
     widget_instalado "$efeito" || install_widgets
-    widget_instalado "$efeito" || { echo "Widget $efeito: o pacote não está no projeto (modules/widgets/plasmoides)." >&2; return 1; }
+    widget_instalado "$efeito" || { echo "$(t "Widget $efeito: o pacote não está no projeto (modules/widgets/plasmoides)." "Widget $efeito: the package is not in the project (modules/widgets/plasmoides).")" >&2; return 1; }
     widgets_criar "$efeito" "$([[ ${2:-} == refazer ]] && echo 1 || echo 0)"
   fi
 }
@@ -747,10 +747,10 @@ phase_widgets() {
     [[ $(widget_pref "$e" ligado false) == true || -n $(widget_applets "$e") ]] && algum=1
   done
   (( algum )) || return 0  # nenhum escolhido: nada a fazer, nem precisa do plasmashell
-  plasmashell_garantir || { echo "O plasmashell não respondeu; os widgets ficam para o próximo 'cyberkde on'." >&2; return 1; }
+  plasmashell_garantir || { echo "$(t "O plasmashell não respondeu; os widgets ficam para o próximo 'cyberkde on'." "plasmashell did not respond; the widgets wait for the next 'cyberkde on'.")" >&2; return 1; }
   for e in $(widgets_lista); do widget_aplicar "$e" || true; done
   rm -f -- "$widgets_marca_interna"  # o que o tema tirou já voltou
-  widgets_layout_aplicar || echo "widgets: o layout FUI não foi aplicado." >&2
+  widgets_layout_aplicar || echo "$(t "widgets: o layout FUI não foi aplicado." "widgets: the FUI layout was not applied.")" >&2
 }
 # A fase não grava chaves (os applets ficam no widgets.tsv), então "on widgets" sozinho deixa o registro
 # do tema vazio: a marca diz que ela está ligada mesmo sem nenhum widget.
@@ -763,7 +763,7 @@ pre_off_widgets() {
   if declare -F cerca_unidades_parar >/dev/null; then cerca_unidades_parar; fi
   plasmashell_assentar  # recém-criado: a cópia guardaria uma geometria ainda sem o tamanho final
   [[ -s $widgets_reg ]] || return 0
-  qdbus6 org.kde.plasmashell /PlasmaShell >/dev/null 2>&1 || { echo "widgets: o plasmashell não está no ar; os widgets do tema ficam até o próximo off." >&2; return 0; }
+  qdbus6 org.kde.plasmashell /PlasmaShell >/dev/null 2>&1 || { echo "$(t "widgets: o plasmashell não está no ar; os widgets do tema ficam até o próximo off." "widgets: plasmashell is not running; the theme widgets stay until the next off.")" >&2; return 0; }
   local e
   for e in $(widgets_lista); do widgets_remover "$e" || true; done
 }
@@ -987,9 +987,10 @@ widget_estado() {  # efeito -> JSON (com instâncias: o da primeira, mais "insta
     "$(widget_campo "$e" 11 || echo outros)" "$(widgets_geo "$e")" "$instancias"
 }
 widget_json() {  # efeito -> item do efeito --lista
-  local e=$1 previa opcoes c cantos="" forma comando
+  local e=$1 previa previa_en opcoes c cantos="" forma comando
   previa="$project/assets/previas/widgets/$e.webp"; [[ -f $previa ]] || previa="$project/assets/previas/widgets/$e.png"
   [[ -f $previa ]] || previa=""
+  previa_en="$project/assets/previas/widgets/$e-en.webp"; [[ -f $previa_en ]] || previa_en=""
   for c in "${widgets_cantos[@]}"; do
     case $c in
       superior-direito) cantos+="${cantos:+,}{\"id\":\"$c\",\"nome\":\"Canto superior direito\",\"nome_en\":\"Top right\"}" ;;
@@ -1026,9 +1027,9 @@ widget_json() {  # efeito -> item do efeito --lista
     comando+=" [--instancia {instancia}]"
     multi=",\"multiInstancia\":true,\"comandoNova\":\"cyberkde efeito widget-$e nova\",\"comandoRemover\":\"cyberkde efeito widget-$e remover {instancia}\""
   fi
-  printf '{"id":"widget-%s","grupo":"area-de-trabalho","nome":%s,"nome_en":%s,"descricao":%s,"descricao_en":%s,"tipo":"liga","categoria":"%s","previa":%s,"opcoes":[%s],"forma":%s,"comando":%s%s,"estado":%s}' \
+  printf '{"id":"widget-%s","grupo":"area-de-trabalho","nome":%s,"nome_en":%s,"descricao":%s,"descricao_en":%s,"tipo":"liga","categoria":"%s","previa":%s,"previa_en":%s,"opcoes":[%s],"forma":%s,"comando":%s%s,"estado":%s}' \
     "$e" "$(json_str "Widget: $(widget_campo "$e" 5)")" "$(json_str "Widget: $(widget_campo "$e" 6)")" \
-    "$(json_str "$(widget_campo "$e" 7)")" "$(json_str "$(widget_campo "$e" 8)")" "$(widget_campo "$e" 11)" "$(json_caminho "$previa")" \
+    "$(json_str "$(widget_campo "$e" 7)")" "$(json_str "$(widget_campo "$e" 8)")" "$(widget_campo "$e" 11)" "$(json_caminho "$previa")" "$(json_caminho "$previa_en")" \
     "$opcoes" "$forma" "$(json_str "$comando")" "$multi" "$(widget_estado "$e")"
 }
 
@@ -1089,7 +1090,8 @@ widget_cmd() {  # efeito args...
       *) acao=invalida ;;
     esac
   done
-  [[ $acao != invalida ]] || cor_exit 2 "$(t uso usage): cyberkde efeito widget-$e [on|off] [--tela principal|todas] [--posicao $(IFS='|'; echo "${widgets_cantos[*]}")] [--modo pequeno|medio|grande] [--opacidade ${omin:-30}-${omax:-100}]$uso_extra$(widget_instanciavel "$b" && echo ' [--instancia <id>|todas] | nova | remover <id>') [--json]"
+  [[ $acao != invalida ]] || cor_exit 2 "$(t "uso: cyberkde efeito widget-$e [on|off] [--tela principal|todas] [--posicao $(IFS='|'; echo "${widgets_cantos[*]}")] [--modo pequeno|medio|grande] [--opacidade ${omin:-30}-${omax:-100}]$uso_extra$(widget_instanciavel "$b" && echo ' [--instancia <id>|todas] | nova | remover <id>') [--json]" \
+    "usage: cyberkde effect $(nome_cli "widget-$e") [on|off] [--screen main|all] [--position top-right|bottom-right|top-left|bottom-left] [--mode small|medium|large] [--opacity ${omin:-30}-${omax:-100}]$uso_extra$(widget_instanciavel "$b" && echo ' [--instance <id>|all] | new | remove <id>') [--json]")"
   local -a avisos=("${widget_avisos_extra[@]}")
   # Opção global: vale para todas as instâncias, inclusive com nenhuma na mesa, e não entra em nenhuma delas.
   local globais="" gs
@@ -1591,13 +1593,14 @@ efeito_estado_widget-layout() {
     "$([[ -s $widgets_layout_tsv ]] && echo true || echo false)"
 }
 efeito_json_widget-layout() {
-  local previa="$project/assets/previas/widgets/painelfui.webp"
+  local previa="$project/assets/previas/widgets/painelfui.webp" previa_en="$project/assets/previas/widgets/painelfui-en.webp"
   [[ -f $previa ]] || previa=""
-  printf '{"id":"widget-layout","grupo":"area-de-trabalho","nome":%s,"nome_en":%s,"descricao":%s,"descricao_en":%s,"tipo":"variante","previa":%s,"opcoes":[{"id":"layout","nome":"Layout","nome_en":"Layout","tipo":"variante","padrao":"livre","valores":[{"id":"fui","nome":"FUI (painel no centro, colunas dos lados)","nome_en":"FUI (dashboard in the middle, side columns)","previa":%s},{"id":"livre","nome":"Livre (onde estavam)","nome_en":"Free (where they were)","previa":null}]},{"id":"so-painel","nome":"Só o painel","nome_en":"Dashboard only","tipo":"escolha","padrao":"off","valores":[{"id":"off","nome":"Painel e colunas","nome_en":"Dashboard and columns"},{"id":"on","nome":"Só o painel","nome_en":"Dashboard only"}]}],"forma":{"liga":false,"opcoes":{"layout":"posicional","so-painel":"flag"}},"comando":"cyberkde efeito widget-layout [{layout}] [--so-painel {so-painel}]","estado":%s}' \
+  [[ -f $previa_en ]] || previa_en=""
+  printf '{"id":"widget-layout","grupo":"area-de-trabalho","nome":%s,"nome_en":%s,"descricao":%s,"descricao_en":%s,"tipo":"variante","previa":%s,"previa_en":%s,"opcoes":[{"id":"layout","nome":"Layout","nome_en":"Layout","tipo":"variante","padrao":"livre","valores":[{"id":"fui","nome":"FUI (painel no centro, colunas dos lados)","nome_en":"FUI (dashboard in the middle, side columns)","previa":%s,"previa_en":%s},{"id":"livre","nome":"Livre (onde estavam)","nome_en":"Free (where they were)","previa":null}]},{"id":"so-painel","nome":"Só o painel","nome_en":"Dashboard only","tipo":"escolha","padrao":"off","valores":[{"id":"off","nome":"Painel e colunas","nome_en":"Dashboard and columns"},{"id":"on","nome":"Só o painel","nome_en":"Dashboard only"}]}],"forma":{"liga":false,"opcoes":{"layout":"posicional","so-painel":"flag"}},"comando":"cyberkde efeito widget-layout [{layout}] [--so-painel {so-painel}]","estado":%s}' \
     "$(json_str "Layout dos widgets")" "$(json_str "Widget layout")" \
     "$(json_str "FUI: o Painel FUI no centro da tela e os widgets ligados (relógio, clima, câmbio, desempenho, discos, notas) em colunas dos lados, alinhados às faixas do painel. Livre: cada um onde estava.")" \
     "$(json_str "FUI: the FUI dashboard in the middle of the screen and the widgets that are on (clock, weather, exchange, performance, disks, notes) in side columns, lined up with the dashboard rows. Free: each one where it was.")" \
-    "$(json_caminho "$previa")" "$(json_caminho "$previa")" "$(efeito_estado_widget-layout)"
+    "$(json_caminho "$previa")" "$(json_caminho "$previa_en")" "$(json_caminho "$previa")" "$(json_caminho "$previa_en")" "$(efeito_estado_widget-layout)"
 }
 
 #   cyberkde efeito widget-layout [fui|livre] [--so-painel [on|off]] [--json]   (sem nada: só lê)
@@ -1617,7 +1620,7 @@ efeito_cmd_widget-layout() {
       *) layout=invalida ;;
     esac
   done
-  [[ $layout != invalida ]] || cor_exit 2 "$(t "uso: cyberkde efeito widget-layout [fui|livre] [--so-painel [on|off]] [--json]" "usage: cyberkde efeito widget-layout [fui|livre] [--so-painel [on|off]] [--json]")"
+  [[ $layout != invalida ]] || cor_exit 2 "$(t "uso: cyberkde efeito widget-layout [fui|livre] [--so-painel [on|off]] [--json]" "usage: cyberkde effect widget-layout [fui|free] [--dashboard-only [on|off]] [--json]")"
   local -a avisos=()
   if [[ -n $layout$so ]]; then
     take_lock || cor_exit 3 "$(t "ocupado: outra execução do cyberkde está em andamento" "busy: another cyberkde run is in progress")"
@@ -1690,7 +1693,7 @@ cerca_pref() {  # chave [padrão]
 cerca_pref_gravar() { mkdir -p -- "$(dirname -- "$efeitos_file")"; kwriteconfig6 --file "$efeitos_file" --group cerca --key "$1" "$2"; }
 cerca_componente=cyberkde-cerca.desktop
 cerca_dir="$config/cyberkde/cercas"
-cerca_py() { python3 "$widgets_src/cerca_cli.py" "$@"; }
+cerca_py() { CYBERKDE_LANG=$cyberkde_lang python3 "$widgets_src/cerca_cli.py" "$@"; }
 cerca_ocultas_arq="$cerca_dir/ocultas"   # existe = ocultas (o widget vigia)
 widgets_estado_dir="$config/cyberkde/widgets"       # ocultos, gesto, junto, animacao.<id> (nomes de arquivo)
 widgets_ocultos_arq="$widgets_estado_dir/ocultos"
@@ -2034,7 +2037,9 @@ cmd_widgets() {
     if [[ $arg == --json ]]; then cor_json=1; else a+=("$arg"); fi
   done
   if (( cor_json )); then exec 3>&1 1>&2; else exec 3>&1; fi
-  local uso="cyberkde widgets estado|ocultar|mostrar|alternar | gesto on|off | junto on|off | animacao <id>|cercas [--json]"
+  local uso
+  uso=$(t "cyberkde widgets estado|ocultar|mostrar|alternar | gesto on|off | junto on|off | animacao <id>|cercas [--json]" \
+    "cyberkde widgets status|hide|show|toggle | gesture on|off | together on|off | animation <id>|fences [--json]")
   local sub=${a[0]:-estado} val=${a[1]:-} alvo
   (( ${#a[@]} <= 2 )) || cor_exit 2 "$(t uso usage): $uso"
   case $sub in
@@ -2223,7 +2228,7 @@ if [[ -n ${widgets_f[cerca:1]-} ]]; then
           cmd_cerca nova
         fi ;;
       alternar | mostrar | ocultar)
-        (( ! ${#resto[@]} )) || cor_exit 2 "$(t "uso: cyberkde cerca nova|alternar|mostrar|ocultar [--json]" "usage: cyberkde cerca nova|alternar|mostrar|ocultar [--json]")"
+        (( ! ${#resto[@]} )) || cor_exit 2 "$(t "uso: cyberkde cerca nova|alternar|mostrar|ocultar [--json]" "usage: cyberkde fence new|toggle|show|hide [--json]")"
         local v=true
         case $sub in
           mostrar) v=false ;;
@@ -2239,7 +2244,7 @@ if [[ -n ${widgets_f[cerca:1]-} ]]; then
           off) agora=false ;;
           alternar) if [[ $agora == true ]]; then agora=false; else agora=true; fi ;;
           "") ;;
-          *) cor_exit 2 "$(t "uso: cyberkde cerca peek [on|off|alternar] [--json]" "usage: cyberkde cerca peek [on|off|alternar] [--json]")" ;;
+          *) cor_exit 2 "$(t "uso: cyberkde cerca peek [on|off|alternar] [--json]" "usage: cyberkde fence peek [on|off|toggle] [--json]")" ;;
         esac
         mkdir -p -- "$cerca_dir"
         if [[ $agora == true ]]; then : >"$cerca_peek_arq"; else rm -f -- "${cerca_peek_arq:?}"; fi
@@ -2286,12 +2291,12 @@ if [[ -n ${widgets_f[cerca:1]-} ]]; then
             printf '%s\n' "$ch" >"$marca"
             alvo=$(cerca_py snap-resolucao "$ch")
             if [[ -n $alvo ]] && take_lock; then local bk_final=""; cerca_restaurar "$alvo"; fi ;;
-          *) cor_exit 2 "$(t "uso: cyberkde cerca snapshot salvar|listar|restaurar|apagar <nome>" "usage: cyberkde cerca snapshot salvar|listar|restaurar|apagar <name>")" ;;
+          *) cor_exit 2 "$(t "uso: cyberkde cerca snapshot salvar|listar|restaurar|apagar <nome>" "usage: cyberkde fence snapshot save|list|restore|delete <name>")" ;;
         esac ;;
       backup | exportar)
         local arq=${resto[0]:-} js_atual
         if [[ $sub == backup ]]; then mkdir -p -- "$cerca_dir/backups"; arq="$cerca_dir/backups/cercas-$(date +%Y%m%d-%H%M%S).json"; fi
-        [[ -n $arq ]] || cor_exit 2 "$(t "uso: cyberkde cerca exportar <arquivo>" "usage: cyberkde cerca exportar <file>")"
+        [[ -n $arq ]] || cor_exit 2 "$(t "uso: cyberkde cerca exportar <arquivo>" "usage: cyberkde fence export <file>")"
         js_atual=$(cerca_ler) || js_atual='{}'
         cerca_py exportar "$arq" "$widgets_reg" "$(cerca_chave_telas)" "${jf[@]}" <<<"$js_atual" >&3 ;;
       importar)
@@ -2308,7 +2313,7 @@ if [[ -n ${widgets_f[cerca:1]-} ]]; then
           fi
         fi
         printf '%s\n' "$r" >&3 ;;
-      *) cor_exit 2 "$(t "uso: cyberkde cerca nova|alternar|mostrar|ocultar|peek|regras|snapshot|backup|exportar|importar [--json]" "usage: cyberkde cerca nova|alternar|mostrar|ocultar|peek|regras|snapshot|backup|exportar|importar [--json]")" ;;
+      *) cor_exit 2 "$(t "uso: cyberkde cerca nova|alternar|mostrar|ocultar|peek|regras|snapshot|backup|exportar|importar [--json]" "usage: cyberkde fence new|toggle|show|hide|peek|rules|snapshot|backup|export|import [--json]")" ;;
     esac
   }
 fi

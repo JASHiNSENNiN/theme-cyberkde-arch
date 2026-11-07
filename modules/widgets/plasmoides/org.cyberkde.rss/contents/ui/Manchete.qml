@@ -29,7 +29,7 @@ Item {
             spacing: 6
             Codigo { text: (m.n.fonte || "").toUpperCase(); textFormat: Text.PlainText; tamanho: 8; font.bold: true; color: m.lida ? Cores.texto3 : Cores.secundaria }
             Codigo { text: "· " + m.hora; tamanho: 8; color: Cores.texto3 }
-            Codigo { visible: m.n.novo === true && !m.lida; text: "● NOVA"; tamanho: 8; font.bold: true; color: Cores.destaque }
+            Codigo { visible: m.n.novo === true && !m.lida; text: Cores.en ? "● NEW" : "● NOVA"; tamanho: 8; font.bold: true; color: Cores.destaque }
         }
         Leitura {
             width: parent.width
