@@ -1,0 +1,282 @@
+{
+ "pycharm": {
+  "nome": "PyCharm",
+  "nomes": [
+   "jetbrains-pycharm",
+   "pycharm",
+   "pycharm-community",
+   "pycharm-professional",
+   "pycharm-edu",
+   "jetbrains-pycharm-ce",
+   "pycharm_pycharm"
+  ],
+  "desktops": [
+   "pycharm_pycharm.desktop",
+   "jetbrains-pycharm.desktop",
+   "jetbrains-pycharm-ce.desktop"
+  ]
+ },
+ "datagrip": {
+  "nome": "DataGrip",
+  "nomes": [
+   "datagrip",
+   "jetbrains-datagrip"
+  ],
+  "desktops": [
+   "datagrip.desktop"
+  ]
+ },
+ "dbeaver": {
+  "nome": "DBeaver",
+  "nomes": [
+   "dbeaver",
+   "dbeaver-ce",
+   "io.dbeaver.DBeaverCommunity",
+   "dbeaver_dbeaver"
+  ],
+  "desktops": [
+   "dbeaver-ce.desktop",
+   "dbeaver.desktop"
+  ]
+ },
+ "steam": {
+  "nome": "Steam",
+  "nomes": [
+   "steam",
+   "steam_icon_steam",
+   "com.valvesoftware.Steam",
+   "steam-launcher"
+  ],
+  "desktops": [
+   "steam.desktop"
+  ]
+ },
+ "google-chrome": {
+  "nome": "Google Chrome",
+  "nomes": [
+   "google-chrome",
+   "google-chrome-stable",
+   "google-chrome-beta",
+   "chromium",
+   "chromium-browser",
+   "com.google.Chrome"
+  ],
+  "desktops": [
+   "google-chrome.desktop"
+  ]
+ },
+ "claude-desktop": {
+  "nome": "Claude",
+  "nomes": [
+   "claude-desktop",
+   "com.anthropic.Claude",
+   "claude",
+   "claude-ai"
+  ],
+  "desktops": [
+   "com.anthropic.Claude.desktop",
+   "claude-desktop.desktop"
+  ]
+ },
+ "spotify": {
+  "nome": "Spotify",
+  "nomes": [
+   "spotify-client",
+   "spotify",
+   "com.spotify.Client"
+  ],
+  "desktops": [
+   "spotify.desktop"
+  ]
+ },
+ "1password": {
+  "nome": "1Password",
+  "nomes": [
+   "1password",
+   "com.onepassword.OnePassword",
+   "onepassword"
+  ],
+  "desktops": [
+   "1password.desktop"
+  ]
+ },
+ "telegram": {
+  "nome": "Telegram",
+  "nomes": [
+   "telegram",
+   "org.telegram.desktop",
+   "telegram-desktop",
+   "org.telegram.desktop.desktop",
+   "telegramdesktop"
+  ],
+  "desktops": [
+   "org.telegram.desktop.desktop",
+   "telegramdesktop.desktop"
+  ]
+ },
+ "obs-studio": {
+  "nome": "OBS Studio",
+  "nomes": [
+   "com.obsproject.Studio",
+   "obs",
+   "obs-studio"
+  ],
+  "desktops": [
+   "com.obsproject.Studio.desktop"
+  ]
+ },
+ "remmina": {
+  "nome": "Remmina",
+  "nomes": [
+   "org.remmina.Remmina",
+   "remmina",
+   "remmina-main"
+  ],
+  "desktops": [
+   "org.remmina.Remmina.desktop"
+  ]
+ },
+ "filezilla": {
+  "nome": "FileZilla",
+  "nomes": [
+   "filezilla",
+   "org.filezilla_project.Filezilla"
+  ],
+  "desktops": [
+   "filezilla.desktop"
+  ]
+ },
+ "virtualbox": {
+  "nome": "VirtualBox",
+  "nomes": [
+   "virtualbox",
+   "org.virtualbox.VirtualBox",
+   "virtualbox-ose"
+  ],
+  "desktops": [
+   "virtualbox.desktop"
+  ]
+ },
+ "kate": {
+  "nome": "Kate",
+  "nomes": [
+   "kate",
+   "org.kde.kate",
+   "kate-symbolic-app"
+  ],
+  "desktops": [
+   "org.kde.kate.desktop"
+  ]
+ },
+ "systemsettings": {
+  "nome": "Configurações do sistema",
+  "nomes": [
+   "systemsettings",
+   "org.kde.systemsettings"
+  ],
+  "desktops": [
+   "systemsettings.desktop"
+  ]
+ },
+ "plasma-systemmonitor": {
+  "nome": "Monitor do sistema",
+  "nomes": [
+   "org.kde.plasma-systemmonitor",
+   "org.kde.plasma.systemmonitor"
+  ],
+  "desktops": [
+   "org.kde.plasma-systemmonitor.desktop"
+  ]
+ },
+ "libreoffice": {
+  "nome": "LibreOffice",
+  "nomes": [
+   "libreoffice-startcenter",
+   "libreoffice-main",
+   "libreoffice"
+  ],
+  "desktops": [
+   "libreoffice-startcenter.desktop"
+  ]
+ },
+ "software": {
+  "nome": "Loja de programas",
+  "nomes": [
+   "kubuntu-manage-software",
+   "org.kubuntu.manage-software",
+   "snap-store",
+   "org.gnome.Software",
+   "org.kde.discover",
+   "plasmadiscover"
+  ],
+  "desktops": [
+   "org.kubuntu.manage-software.desktop",
+   "snap-store_snap-store.desktop"
+  ]
+ },
+ "vscode": {
+  "nome": "Visual Studio Code",
+  "nomes": [
+   "vscode",
+   "code",
+   "visual-studio-code",
+   "com.visualstudio.code",
+   "com.visualstudio.code.oss"
+  ],
+  "desktops": [
+   "code.desktop"
+  ]
+ },
+ "shotcut": {
+  "nome": "Shotcut",
+  "nomes": [
+   "org.shotcut.Shotcut",
+   "shotcut"
+  ],
+  "desktops": [
+   "org.shotcut.Shotcut.desktop"
+  ]
+ },
+ "cura": {
+  "nome": "Ultimaker Cura",
+  "nomes": [
+   "cura-icon",
+   "com.ultimaker.cura",
+   "cura"
+  ],
+  "desktops": [
+   "com.ultimaker.cura.desktop"
+  ]
+ },
+ "meshmixer": {
+  "nome": "Meshmixer",
+  "nomes": [
+   "meshmixer"
+  ],
+  "desktops": [
+   "meshmixer.desktop"
+  ]
+ },
+ "text-editor": {
+  "nome": "Editor de texto",
+  "nomes": [
+   "org.gnome.TextEditor",
+   "accessories-text-editor"
+  ],
+  "desktops": [
+   "org.gnome.TextEditor.desktop"
+  ]
+ },
+ "calculator": {
+  "nome": "Calculadora",
+  "nomes": [
+   "org.gnome.Calculator",
+   "accessories-calculator",
+   "org.kde.kcalc",
+   "kcalc"
+  ],
+  "desktops": [
+   "org.gnome.Calculator.desktop"
+  ]
+ }
+}

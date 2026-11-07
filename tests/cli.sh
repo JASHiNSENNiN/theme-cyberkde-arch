@@ -127,7 +127,7 @@ run() { HOME=$tmp XDG_CONFIG_HOME=$tmp/.config XDG_DATA_HOME=$tmp/.local/share X
 
 for j in "fases --json" "status --json" "efeito --lista --json" "corp --lista --json"; do
   pt=$(CYBERKDE_LANG=pt run $j) en=$(CYBERKDE_LANG=en run $j)
-  python3 -I -c 'import json,sys; json.loads(sys.argv[1])' "$pt" 2>/dev/null || { fail "json: $j is not valid JSON"; continue; }
+  python3 -I -c 'import json,sys; json.load(sys.stdin)' <<<"$pt" 2>/dev/null || { fail "json: $j is not valid JSON"; continue; }
   [[ $pt == "$en" ]] && pass "json: '$j' is the same in both languages" || fail "json: '$j' changes with the language"
 done
 
